@@ -32,13 +32,13 @@ import SearchBar from "./components/SearchBar";
 import EmptyState from "./components/EmptyState";
 import Layout from "../components/layout/Layout";
 
-// Mock data fetch
+// Mock data fetch (reverted)
 const fetchMarketplaceItems = async () => {
   try {
     const response = await fetch("/data/marketplace.json");
     return await response.json();
   } catch (error) {
-    console.error("Error fetching marketplace items:", error);
+    console.error("Error fetching marketplace items from JSON:", error);
     return [];
   }
 };
@@ -62,69 +62,9 @@ export default function Marketplace() {
     const loadData = async () => {
       const data = await fetchMarketplaceItems();
 
-      // If we can't fetch data, use some mock data as fallback
-      const fallbackData = [
-        {
-          id: "course-001",
-          type: "course",
-          title: "Advanced Machine Learning Specialization",
-          description:
-            "Master the fundamentals of machine learning and apply them to real-world challenges. This comprehensive course covers supervised and unsupervised learning, deep neural networks, and more.",
-          provider: "AI Institute",
-          price: 199,
-          rating: 4.8,
-          reviewCount: 2456,
-          image:
-            "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=800&h=500&fit=crop",
-          premium: true,
-          featured: true,
-          skills: ["Machine Learning", "Python", "TensorFlow", "Data Science"],
-          duration: "12 weeks",
-        },
-        {
-          id: "mentorship-001",
-          type: "mentorship",
-          title: "1-on-1 Data Science Career Coaching",
-          description:
-            "Get personalized guidance from industry experts to accelerate your data science career. Weekly sessions focused on practical skills and career development.",
-          mentor: {
-            name: "Dr. Emily Chen",
-            avatar:
-              "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-          },
-          price: 149,
-          priceType: "month",
-          rating: 4.9,
-          reviewCount: 318,
-          image:
-            "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=500&fit=crop",
-          premium: true,
-          featured: true,
-          skills: ["Data Science", "Career Development", "Interview Prep"],
-        },
-        {
-          id: "peer-001",
-          type: "peer-teaching",
-          title: "Web Development Study Group",
-          description:
-            "Join a peer-led study group of aspiring web developers. Share knowledge, collaborate on projects, and learn together in a supportive environment.",
-          teacher: {
-            name: "Michael Roberts",
-            avatar:
-              "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&h=100&fit=crop",
-          },
-          price: 25,
-          priceType: "week",
-          rating: 4.6,
-          reviewCount: 124,
-          image:
-            "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&h=500&fit=crop",
-          skills: ["JavaScript", "React", "Node.js", "HTML/CSS"],
-        },
-      ];
-
-      setItems(data.length ? data : fallbackData);
-      setFilteredItems(data.length ? data : fallbackData);
+      // Reverted: Assume data from JSON is always an array
+      setItems(data);
+      setFilteredItems(data);
       setLoading(false);
     };
 

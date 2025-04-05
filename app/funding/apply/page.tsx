@@ -7,6 +7,7 @@ import FormContainer from "./components/FormContainer";
 import LoadingScreen from "./components/LoadingScreen";
 import SuccessScreen from "./components/SuccessScreen";
 import Layout from "@/app/components/layout/Layout";
+import { toast } from "react-hot-toast"; // Assuming you might use react-hot-toast or similar for notifications
 
 // Mock data fetch functions
 const fetchUserData = async () => {
@@ -34,7 +35,10 @@ export default function FundingApplicationPage() {
   const [userData, setUserData] = useState<any>(null);
   const [investors, setInvestors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Track submission process
+  const [submitError, setSubmitError] = useState<string | null>(null); // Store potential submission errors
   const [isSubmitted, setIsSubmitted] = useState(false);
+  // Revert formData state to its original structure used by FormContainer and steps
   const [formData, setFormData] = useState({
     personalInfo: {
       name: "",
@@ -132,29 +136,45 @@ export default function FundingApplicationPage() {
             ]
       );
 
-      // Pre-fill form with user data
+      // Pre-fill form with user data - Ensure this matches the reverted state structure
       if (user) {
         setFormData((prev) => ({
           ...prev,
           personalInfo: {
-            name: user.name,
-            email: user.email,
-            phone: "555-123-4567", // Mock phone number
-            location: user.location,
-            bio: user.bio,
+            ...prev.personalInfo, // Keep existing fields if needed
+            name: user.name || prev.personalInfo.name,
+            email: user.email || prev.personalInfo.email,
+            phone: prev.personalInfo.phone || "555-123-4567", // Use existing or default
+            location: user.location || prev.personalInfo.location,
+            bio: user.bio || prev.personalInfo.bio,
           },
           education: {
-            ...prev.education,
-            skills: user.skills.map((skill: any) => skill.name),
+            ...prev.education, // Keep existing fields
+            skills:
+              user.skills?.map((skill: any) => skill.name) ||
+              prev.education.skills,
           },
           career: {
-            ...prev.career,
-            shortTermGoals: user.career.objectives.join("\n"),
-            longTermGoals: "",
-            targetIndustries: ["Technology", "Finance"],
-            targetRoles: ["Data Scientist", "Machine Learning Engineer"],
-            salaryExpectations: user.career.desiredSalary.toString(),
+            ...prev.career, // Keep existing fields
+            shortTermGoals:
+              user.career?.objectives?.join("\n") || prev.career.shortTermGoals,
+            salaryExpectations:
+              user.career?.desiredSalary?.toString() ||
+              prev.career.salaryExpectations,
+            // Keep other fields like longTermGoals, targetIndustries, targetRoles as they were or update if user data has them
+            longTermGoals: prev.career.longTermGoals,
+            targetIndustries:
+              prev.career.targetIndustries.length > 0
+                ? prev.career.targetIndustries
+                : ["Technology", "Finance"], // Example default
+            targetRoles:
+              prev.career.targetRoles.length > 0
+                ? prev.career.targetRoles
+                : ["Data Scientist", "Machine Learning Engineer"], // Example default
           },
+          // Keep funding and documents as they were unless user data provides defaults
+          funding: prev.funding,
+          documents: prev.documents,
         }));
       }
 
@@ -190,17 +210,114 @@ export default function FundingApplicationPage() {
     }
   }, [loading]);
 
-  const handleSubmitApplication = (data: any) => {
-    console.log("Submitting application:", data);
-    setIsSubmitted(true);
+  const handleSubmitApplication = async (submittedData: any) => {
+    console.log(
+      "Form data received by handleSubmitApplication:",
+      submittedData
+    );
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    // **Map frontend state (submittedData) to the structure expected by the API (Proposal schema)**
+    // This mapping is crucial and depends on how FormContainer provides the data.
+    // Assuming submittedData contains keys like personalInfo, funding, education, career, documents.
+    const apiPayload = {
+      personalInfo: {
+        // Example: Split name if needed, otherwise pass directly if form uses firstName/lastName
+        firstName: submittedData.personalInfo?.name?.split(" ")[0] || "", // Adjust splitting logic
+        lastName:
+          submittedData.personalInfo?.name?.split(" ").slice(1).join(" ") || "", // Adjust splitting logic
+        email: submittedData.personalInfo?.email || "",
+        phone: submittedData.personalInfo?.phone || "",
+        address: submittedData.personalInfo?.location || "", // Map location to address
+      },
+      fundingGoals: {
+        amountRequested: parseFloat(submittedData.funding?.amount) || 0, // Ensure number
+        purpose: submittedData.funding?.purpose || "",
+        // Assuming course/institution are part of 'education' in the form state
+        courseName: submittedData.education?.major || "", // Example mapping
+        institutionName: submittedData.education?.institution || "", // Example mapping
+        studyDurationMonths: undefined, // Add if collected in form
+      },
+      // Optional fields - map if available in submittedData
+      financialInfo: {
+        annualIncome:
+          parseFloat(submittedData.career?.salaryExpectations) || undefined, // Example mapping
+        hasCollateral: undefined, // Add if collected
+        creditScore: submittedData.userData?.educationCreditScore || undefined, // Example mapping from userData
+      },
+      essayOrStatement:
+        submittedData.personalInfo?.bio || submittedData.career?.shortTermGoals, // Example mapping
+      supportingDocuments: [], // Needs logic to handle file uploads and get URLs
+    };
+
+    // Add logic here to handle file uploads (e.g., resume, transcript)
+    // Upload files to a storage service (like S3, Cloudinary, Vercel Blob)
+    // Get the URLs and add them to apiPayload.supportingDocuments array:
+    // Example:
+    // if (uploadedResumeUrl) {
+    //   apiPayload.supportingDocuments.push({ documentType: 'Resume', url: uploadedResumeUrl });
+    // }
+    // if (uploadedTranscriptUrl) {
+    //   apiPayload.supportingDocuments.push({ documentType: 'Transcript', url: uploadedTranscriptUrl });
+    // }
+    // if (submittedData.documents?.portfolioLink) {
+    //    apiPayload.supportingDocuments.push({ documentType: 'Portfolio', url: submittedData.documents.portfolioLink });
+    // }
+
+    console.log(
+      "Attempting to POST to /api/funding/apply with payload:",
+      JSON.stringify(apiPayload, null, 2)
+    );
+
+    try {
+      const response = await fetch("/api/funding/apply", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(apiPayload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("API Error Response:", result);
+        throw new Error(
+          result.error || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      console.log("API Success Response:", result);
+      // DO NOT update formData state here with apiPayload, SuccessScreen uses original structure
+      setIsSubmitted(true); // Show success screen
+      toast.success("Application submitted successfully!"); // Optional success notification
+    } catch (error: any) {
+      console.error("Failed to submit application:", error);
+      setSubmitError(
+        error.message || "An unexpected error occurred during submission."
+      );
+      toast.error(`Submission failed: ${error.message}`); // Optional error notification
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (loading) {
     return <LoadingScreen />;
   }
 
-  if (isSubmitted) {
+  // Keep SuccessScreen logic, but maybe pass the actual saved data if needed
+  if (isSubmitted && !submitError) {
+    // Pass the mapped apiPayload (or the result from API if preferred) to SuccessScreen
     return <SuccessScreen formData={formData} currentTime={currentTime} />;
+  }
+
+  // Display submission error if it occurred
+  if (submitError) {
+    // Optional: Show error state within the form or a dedicated error message component
+    // For now, we'll just keep the form visible but you could add a specific error display
+    // toast.error(submitError); // Display error via toast if not already done
   }
 
   return (
@@ -252,9 +369,20 @@ export default function FundingApplicationPage() {
           <FormContainer
             userData={userData}
             investors={investors}
-            initialFormData={formData}
-            onSubmit={handleSubmitApplication}
+            initialFormData={formData} // Pass initial form data (original structure)
+            onSubmit={handleSubmitApplication} // Pass the async submit handler
+            // Do not pass isSubmitting or submitError as props to FormContainer
           />
+          {/* Optional: Display error message directly on the page */}
+          {submitError && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-4 bg-red-900/50 text-red-200 border border-red-700 rounded-md text-center"
+            >
+              <strong>Submission Failed:</strong> {submitError}
+            </motion.div>
+          )}
         </div>
 
         {/* Global styles */}

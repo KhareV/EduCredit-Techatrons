@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation"; // Added useRouter
 import {
   ArrowLeft,
   Star,
@@ -33,19 +33,26 @@ const fetchMarketplaceItem = async (id: string) => {
 };
 
 export default function MarketplaceItemPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? ""; // Use optional chaining and provide a default empty string
   const [item, setItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isCheckingOut, setIsCheckingOut] = useState(false); // State for checkout loading
+  const router = useRouter(); // Initialize router
 
   useEffect(() => {
     const loadData = async () => {
-      const itemData = await fetchMarketplaceItem(id as string);
-      setItem(itemData);
+      if (id) {
+        // Only fetch if id is available
+        const itemData = await fetchMarketplaceItem(id);
+        setItem(itemData);
+      }
+      // setItem(itemData); // This line was removed as it caused a ReferenceError
       setLoading(false);
     };
 
     loadData();
-  }, [id]);
+  }, [id]); // Keep dependency on id
 
   if (loading) {
     return (
@@ -81,6 +88,47 @@ export default function MarketplaceItemPage() {
       </div>
     );
   }
+
+  // Handler for the Enroll button click
+  const handleEnrollClick = async () => {
+    if (!item) return;
+    setIsCheckingOut(true);
+    try {
+      const response = await fetch("/api/checkout_sessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ item }), // Send item details to the API
+      });
+
+      if (!response.ok) {
+        // If the response is not OK, maybe the server-side redirect failed
+        // or there was another error. Log it and show an alert.
+        const errorData = await response.json();
+        console.error("Checkout failed:", errorData);
+        alert(`Checkout failed: ${errorData.error || "Unknown error"}`);
+        setIsCheckingOut(false);
+        return;
+      }
+
+      // If the response is OK, parse the URL and redirect client-side
+      const { url } = await response.json();
+      if (url) {
+        router.push(url); // Redirect the user to Stripe
+      } else {
+        // Handle case where URL is missing in the response
+        console.error("Checkout failed: No session URL returned from API.");
+        alert("Checkout failed: Could not retrieve payment session URL.");
+        setIsCheckingOut(false);
+      }
+    } catch (error) {
+      console.error("Error initiating checkout:", error);
+      alert("An error occurred while initiating checkout. Please try again.");
+      setIsCheckingOut(false);
+    }
+    // No need to set setIsCheckingOut(false) on success because the page will redirect.
+  };
 
   return (
     <Layout>
@@ -466,12 +514,13 @@ export default function MarketplaceItemPage() {
                   </div>
 
                   <div className="pt-4 border-t border-white/10">
-                    <Link
-                      href="#"
-                      className="w-full block text-center px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 transition-all"
+                    <button
+                      onClick={handleEnrollClick}
+                      disabled={isCheckingOut}
+                      className="w-full block text-center px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Enroll Now
-                    </Link>
+                      {isCheckingOut ? "Processing..." : "Enroll Now"}
+                    </button>
                   </div>
                 </div>
               </div>
