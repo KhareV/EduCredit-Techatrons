@@ -27,7 +27,7 @@ export interface IProposal extends Document {
     documentType: string; // e.g., ID Proof, Admission Letter, Income Statement
     url: string; // URL to the uploaded document
   }[];
-  status: "submitted" | "under_review" | "approved" | "rejected" | "withdrawn";
+  status: "submitted" | "under_review" | "approved" | "rejected" | "withdrawn"; // Original statuses
   submittedAt: Date;
   updatedAt: Date;
 }
@@ -35,8 +35,7 @@ export interface IProposal extends Document {
 // Mongoose Schema for Proposal
 const ProposalSchema: Schema<IProposal> = new Schema(
   {
-    // userId: { type: Schema.Types.ObjectId, ref: "User", required: true }, // Made optional
-    userId: { type: Schema.Types.ObjectId, ref: "User" }, // Removed required: true
+    userId: { type: Schema.Types.ObjectId, ref: "User" }, // Was optional
     personalInfo: {
       firstName: { type: String, required: true },
       lastName: { type: String, required: true },
@@ -65,26 +64,23 @@ const ProposalSchema: Schema<IProposal> = new Schema(
     ],
     status: {
       type: String,
-      enum: ["submitted", "under_review", "approved", "rejected", "withdrawn"],
+      enum: ["submitted", "under_review", "approved", "rejected", "withdrawn"], // Original statuses
       default: "submitted",
     },
-    submittedAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
+    // submittedAt and updatedAt handled by timestamps
   },
   {
     timestamps: { createdAt: "submittedAt", updatedAt: "updatedAt" },
-    collection: "proposal-student", // Explicitly set the collection name here
+    collection: "proposal-student",
   }
-); // Use submittedAt for createdAt
+);
 
-// Force delete the cached model in development to ensure schema changes are picked up
+// Force delete the cached model in development
 if (process.env.NODE_ENV === "development" && mongoose.models.Proposal) {
   delete mongoose.models.Proposal;
   console.log("Deleted cached Proposal model in development.");
 }
 
-// Create and export the Proposal model
-// Check if the model already exists to prevent recompilation issues in Next.js dev mode
 const Proposal: Model<IProposal> =
   models.Proposal || mongoose.model<IProposal>("Proposal", ProposalSchema);
 

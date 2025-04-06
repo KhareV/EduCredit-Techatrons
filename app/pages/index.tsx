@@ -1,7 +1,9 @@
 "use client";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, Suspense } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { gsap } from "gsap";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Environment } from "@react-three/drei";
 
 import Layout from "../components/layout/Layout";
 import Hero from "../components/sections/Hero";
@@ -13,6 +15,8 @@ import Testimonials from "../components/sections/Testimonials";
 import CTA from "../components/sections/CTA";
 import FloatingElements from "../components/effects/FloatingElements";
 import LoadingSpinner from "../components/ui/LoadingScreen";
+import CanvasLoader from "../components/3d/Loading";
+import Girl from "../components/3d/Girl";
 export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll();
@@ -94,6 +98,7 @@ export default function Home() {
         <div className="section">
           <Hero />
         </div>
+
         <div className="section">
           <Features />
         </div>
@@ -112,7 +117,8 @@ export default function Home() {
         <div className="section">
           <CTA />
         </div>
-      </div>
+      </div>{" "}
+      {/* Added the missing closing div for the main container */}
     </Layout>
   );
 }

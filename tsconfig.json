@@ -29,7 +29,10 @@
     ".next/types/**/*.ts",
     "copy-textures.js",
     "app/marketplace/[id]/page.tsx",
-    "lib/mongoose.js"
+    "lib/mongoose.js",
+    "app/components/layout/Header.tsx",
+    "app/onboarding/investor/page.jsx",
+    "app/api/onboarding/route.js"
   ],
   "exclude": ["node_modules"]
 }

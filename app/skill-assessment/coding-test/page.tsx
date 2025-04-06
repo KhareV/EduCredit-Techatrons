@@ -171,8 +171,8 @@ function Notification({
 export default function CodingTestPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const skill = searchParams.get("skill") || "algorithms";
-  const levelParam = searchParams.get("level") || "medium";
+  const skill = searchParams?.get("skill") || "algorithms";
+  const levelParam = searchParams?.get("level") || "medium";
 
   // State variables
   const [loading, setLoading] = useState(true);

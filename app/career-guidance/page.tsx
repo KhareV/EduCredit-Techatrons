@@ -1,795 +1,917 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
-import { motion } from "framer-motion";
-import Head from "next/head";
+
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Tab } from "@headlessui/react";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import { gsap } from "gsap";
 import {
-  FaMapMarkerAlt,
-  FaLightbulb,
-  FaRoad,
-  FaGraduationCap,
-  FaBriefcase,
-  FaPuzzlePiece,
-  FaRocket,
-  FaTrophy,
-  FaCalendarAlt,
-  FaDollarSign,
-  FaStar,
-  FaCheck,
-  FaTimes,
-} from "react-icons/fa";
+  ArrowRight,
+  ChevronDown,
+  ChevronRight,
+  LineChart,
+  MapPin,
+  DollarSign,
+  Briefcase,
+  GraduationCap,
+  TrendingUp,
+  User,
+  Building,
+  Clock,
+  CheckCircle2,
+  BadgeCheck,
+  Target,
+} from "lucide-react";
+import SparkleButton from "@/components/ui/SparkleButton";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { generateCareerPathRecommendations } from "@/lib/gemini-api";
+import { formatCurrency } from "@/lib/utils";
+import LoadingScreen from "../components/ui/LoadingScreen";
 import Layout from "../components/layout/Layout";
-import VisualizationScene from "../components/3d/VisualizationScene";
-import Header from "../components/layout/Header";
-// import Footer from "../components/layout/Footer"; // Unused import - Footer
-import LoadingSpinner from "../components/ui/LoadingScreen";
-import NoiseBackground from "../components/effects/NoiseBackground";
-import FloatingElements from "../components/effects/FloatingElements";
 
-const Footer = () => null; // Temporary fix - unused Footer
-
-// Mock data - would be fetched from API in production
-const careerPathsData = [
-  {
-    id: "path1",
-    title: "Full Stack Developer",
-    description:
-      "A comprehensive path to becoming a skilled full stack developer with expertise in modern web technologies.",
-    currentLevel: "Intermediate",
-    progress: 68,
-    milestones: [
-      { id: 1, title: "Frontend Fundamentals", complete: true },
-      { id: 2, title: "Backend Fundamentals", complete: true },
-      { id: 3, title: "Database Design & Implementation", complete: true },
-      { id: 4, title: "API Development", complete: true },
-      { id: 5, title: "Advanced Frontend (React/Angular)", complete: false },
-      { id: 6, title: "DevOps & Deployment", complete: false },
-      { id: 7, title: "System Architecture", complete: false },
-    ],
-    skills: {
-      acquired: [
-        "HTML",
-        "CSS",
-        "JavaScript",
-        "React",
-        "Node.js",
-        "Express",
-        "SQL",
-      ],
-      recommended: ["Docker", "Kubernetes", "AWS", "GraphQL"],
-    },
-    nextSteps: [
-      {
-        id: "course1",
-        type: "course",
-        title: "Advanced React Patterns",
-        provider: "FrontendMasters",
-        duration: "12 hours",
-        matchScore: 96,
-      },
-      {
-        id: "cert1",
-        type: "certification",
-        title: "AWS Certified Developer",
-        provider: "Amazon Web Services",
-        duration: "3 months",
-        matchScore: 92,
-      },
-    ],
-  },
-  {
-    id: "path2",
-    title: "Data Scientist",
-    description:
-      "A focused path to becoming a skilled data scientist with expertise in analysis, machine learning and data visualization.",
-    currentLevel: "Beginner",
-    progress: 32,
-    milestones: [
-      { id: 1, title: "Python Programming", complete: true },
-      { id: 2, title: "Statistics Foundations", complete: true },
-      { id: 3, title: "Data Preparation & Cleaning", complete: false },
-      { id: 4, title: "Exploratory Data Analysis", complete: false },
-      { id: 5, title: "Machine Learning Fundamentals", complete: false },
-      { id: 6, title: "Deep Learning", complete: false },
-      { id: 7, title: "Advanced ML & Deployment", complete: false },
-    ],
-    skills: {
-      acquired: ["Python", "pandas", "NumPy", "Basic Statistics"],
-      recommended: ["scikit-learn", "TensorFlow", "SQL", "Data Visualization"],
-    },
-    nextSteps: [
-      {
-        id: "course2",
-        type: "course",
-        title: "Data Cleaning & Feature Engineering",
-        provider: "DataCamp",
-        duration: "8 hours",
-        matchScore: 98,
-      },
-      {
-        id: "project1",
-        type: "project",
-        title: "Exploratory Data Analysis Portfolio Project",
-        provider: "EduCredit Projects",
-        duration: "2 weeks",
-        matchScore: 95,
-      },
-    ],
-  },
-];
-
-const jobRecommendationsData = [
-  {
-    id: "job1",
-    title: "Senior Frontend Developer",
-    company: "TechCorp",
-    location: "San Francisco, CA (Remote)",
-    description:
-      "Looking for an experienced Frontend Developer with React expertise to build responsive, accessible web applications.",
-    matchScore: 89,
-    salary: "$120,000 - $150,000",
-    skills: {
-      matching: ["React", "JavaScript", "CSS", "HTML"],
-      missing: ["TypeScript", "GraphQL"],
-    },
-    postedDate: "2025-02-28",
-    applicationDeadline: "2025-03-15",
-  },
-  {
-    id: "job2",
-    title: "Fullstack Engineer",
-    company: "GrowthStartup",
-    location: "New York, NY (Hybrid)",
-    description:
-      "Join our dynamic team building our next-generation platform with React, Node.js and AWS.",
-    matchScore: 94,
-    salary: "$130,000 - $160,000",
-    skills: {
-      matching: ["React", "Node.js", "JavaScript", "Express"],
-      missing: ["AWS", "PostgreSQL"],
-    },
-    postedDate: "2025-03-01",
-    applicationDeadline: "2025-03-30",
-  },
-  {
-    id: "job3",
-    title: "Software Developer",
-    company: "EnterpriseInc",
-    location: "Chicago, IL (On-site)",
-    description:
-      "Develop and maintain business-critical applications using modern JavaScript frameworks.",
-    matchScore: 85,
-    salary: "$110,000 - $140,000",
-    skills: {
-      matching: ["JavaScript", "HTML", "CSS", "React"],
-      missing: ["Java", "Spring Boot", "Microservices"],
-    },
-    postedDate: "2025-02-25",
-    applicationDeadline: "2025-03-25",
-  },
-];
-
-const skillGapsData = {
-  currentRole: "Frontend Developer",
-  desiredRole: "Full Stack Developer",
-  matchPercentage: 72,
-  coreSkills: {
-    acquired: [
-      "HTML",
-      "CSS",
-      "JavaScript",
-      "React",
-      "Responsive Design",
-      "Version Control",
-    ],
-    missing: [
-      "Node.js",
-      "Express",
-      "Database Design",
-      "API Development",
-      "Server Deployment",
-    ],
-  },
-  recommendations: [
-    {
-      id: "rec1",
-      title: "Learn Node.js Fundamentals",
-      description: "Master the basics of server-side JavaScript with Node.js",
-      resource: {
-        title: "Complete Node.js Developer Course",
-        provider: "Udemy",
-        duration: "35 hours",
-        url: "https://EduCredit.io/courses/nodejs-fundamentals",
-      },
-    },
-    {
-      id: "rec2",
-      title: "Database Design & Implementation",
-      description: "Learn SQL and NoSQL database concepts and implementation",
-      resource: {
-        title: "Database Design Mastery",
-        provider: "EduCredit",
-        duration: "16 hours",
-        url: "https://EduCredit.io/courses/database-design",
-      },
-    },
-    {
-      id: "rec3",
-      title: "API Development with Express",
-      description: "Build RESTful APIs with Express.js framework",
-      resource: {
-        title: "RESTful API Development",
-        provider: "Coursera",
-        duration: "12 hours",
-        url: "https://EduCredit.io/courses/api-development",
-      },
-    },
-  ],
+// Mock fetch functions to be replaced with real API calls
+const fetchUserSkills = async () => {
+  try {
+    const response = await fetch("/data/students.json");
+    const students = await response.json();
+    return students[0].skills;
+  } catch (error) {
+    console.error("Error fetching skills:", error);
+    return [];
+  }
 };
 
-const CareerGuidancePage = () => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<any>(null);
-  const [activePath, setActivePath] = useState(careerPathsData[0]);
-  const [draggingJob, setDraggingJob] = useState<string | null>(null);
-  const [savedJobs, setSavedJobs] = useState<string[]>([]);
+const fetchUserProfile = async () => {
+  try {
+    const response = await fetch("/data/students.json");
+    const students = await response.json();
+    return students[0];
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    return null;
+  }
+};
 
-  const headerRef = useRef(null);
+export default function CareerSimulator() {
+  const [loading, setLoading] = useState(true);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [userSkills, setUserSkills] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [selectedCareerPath, setSelectedCareerPath] = useState<any>(null);
+  const [careerRecommendations, setCareerRecommendations] = useState<any>(null);
+  const [userInterests, setUserInterests] = useState<string[]>([
+    "Machine Learning",
+    "Data Analysis",
+    "Software Development",
+  ]);
+  const [newInterest, setNewInterest] = useState("");
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const headlineRef = useRef<HTMLHeadingElement>(null);
+
+  // Current user info - matches the format from Hero component
+  const currentTime = "2025-03-28 05:46:33";
+  const currentUser = "vkhare2909";
 
   useEffect(() => {
-    // Simulate API data loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-      setUserData({
-        name: "John Doe",
-        currentRole: "Frontend Developer",
-        experience: "3 years",
-        profileCompleteness: 85,
-      });
-    }, 3000);
+    const loadData = async () => {
+      const skills = await fetchUserSkills();
+      const profile = await fetchUserProfile();
 
-    return () => clearTimeout(timer);
+      setUserSkills(skills);
+      setUserProfile(profile);
+      setLoading(false);
+
+      // Generate initial recommendations
+      generateRecommendations(skills, profile);
+    };
+
+    loadData();
   }, []);
 
-  const tabVariants = {
-    inactive: { opacity: 0.6 },
-    active: { opacity: 1 },
-  };
+  useEffect(() => {
+    if (!loading && headlineRef.current) {
+      // Animation timeline
+      const tl = gsap.timeline();
 
-  const handleDragStart = (jobId: string) => {
-    setDraggingJob(jobId);
-  };
+      // Animate heading
+      tl.fromTo(
+        headlineRef.current.querySelectorAll("span"),
+        {
+          opacity: 0,
+          y: 30,
+          rotationX: -40,
+        },
+        {
+          opacity: 1,
+          y: 0,
+          rotationX: 0,
+          stagger: 0.12,
+          duration: 1,
+          ease: "power3.out",
+        }
+      );
+    }
+  }, [loading]);
 
-  const handleDragEnd = () => {
-    setDraggingJob(null);
-  };
+  const generateRecommendations = async (skills: any[], profile: any) => {
+    setLoadingRecommendations(true);
+    try {
+      // This would use the real Gemini API in production
+      // For now, we'll simulate a response
+      // In real implementation we'd call:
+      // const recommendations = await generateCareerPathRecommendations(
+      //   skills,
+      //   userInterests,
+      //   profile.bio || "Student with programming experience"
+      // )
 
-  const handleSaveJob = (jobId: string) => {
-    if (savedJobs.includes(jobId)) {
-      setSavedJobs(savedJobs.filter((id) => id !== jobId));
-    } else {
-      setSavedJobs([...savedJobs, jobId]);
+      // Simulated response
+      const recommendations = {
+        careerPaths: [
+          {
+            title: "Machine Learning Engineer",
+            suitabilityScore: 87,
+            requiredSkills: [
+              "Python",
+              "Machine Learning",
+              "Statistics",
+              "TensorFlow",
+            ],
+            currentMatchPercentage: 75,
+            salaryCap: "$130,000",
+            recommendations: [
+              "Take a specialized deep learning course",
+              "Build a portfolio of ML projects",
+              "Learn cloud-based ML deployment",
+            ],
+          },
+          {
+            title: "Data Scientist",
+            suitabilityScore: 82,
+            requiredSkills: [
+              "Python",
+              "Statistics",
+              "Data Visualization",
+              "SQL",
+            ],
+            currentMatchPercentage: 80,
+            salaryCap: "$125,000",
+            recommendations: [
+              "Enhance SQL query optimization skills",
+              "Learn Tableau or Power BI",
+              "Take a course on experimental design",
+            ],
+          },
+          {
+            title: "Full Stack Developer",
+            suitabilityScore: 78,
+            requiredSkills: ["JavaScript", "React", "Node.js", "SQL"],
+            currentMatchPercentage: 65,
+            salaryCap: "$115,000",
+            recommendations: [
+              "Build experience with backend frameworks",
+              "Learn about API design and development",
+              "Complete projects with database integration",
+            ],
+          },
+        ],
+      };
+
+      setCareerRecommendations(recommendations);
+
+      // Default to first recommendation
+      if (recommendations.careerPaths.length > 0 && !selectedCareerPath) {
+        setSelectedCareerPath(recommendations.careerPaths[0]);
+      }
+    } catch (error) {
+      console.error("Error generating recommendations:", error);
+    } finally {
+      setLoadingRecommendations(false);
     }
   };
 
+  const addInterest = () => {
+    if (newInterest.trim() && !userInterests.includes(newInterest.trim())) {
+      setUserInterests([...userInterests, newInterest.trim()]);
+      setNewInterest("");
+
+      // Regenerate recommendations with new interests
+      if (userSkills.length > 0 && userProfile) {
+        generateRecommendations(userSkills, userProfile);
+      }
+    }
+  };
+
+  const removeInterest = (interest: string) => {
+    setUserInterests(userInterests.filter((i) => i !== interest));
+
+    // Regenerate recommendations with updated interests
+    if (userSkills.length > 0 && userProfile) {
+      generateRecommendations(userSkills, userProfile);
+    }
+  };
+
+  // Timeline animation with GSAP
+  useEffect(() => {
+    if (selectedCareerPath && timelineRef.current) {
+      const timelineItems =
+        timelineRef.current.querySelectorAll(".timeline-item");
+
+      gsap.fromTo(
+        timelineItems,
+        {
+          opacity: 0,
+          x: -20,
+        },
+        {
+          opacity: 1,
+          x: 0,
+          stagger: 0.2,
+          duration: 0.5,
+          ease: "power2.out",
+        }
+      );
+    }
+  }, [selectedCareerPath]);
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
-        <LoadingSpinner />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
     <Layout>
-      <Head>
-        <title>Career Guidance | EduCredit</title>
-        <meta
-          name="description"
-          content="Personalized career guidance and planning powered by AI"
-        />
-      </Head>
+      <div className="relative min-h-screen py-24 overflow-hidden">
+        {/* Background Elements */}
+        <div
+          className="absolute inset-0 -z-10 parallax-bg"
+          style={{ height: "150%" }}
+        >
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              background:
+                "radial-gradient(circle at 50% 40%, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.1) 25%, rgba(45, 212, 191, 0.05) 50%, transparent 80%)",
+              height: "150%",
+              width: "100%",
+            }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(circle at 50% 40%, rgba(14,165,233,0.15) 0, rgba(0,0,0,0) 80%)",
+              height: "150%",
+              width: "100%",
+            }}
+          />
+        </div>
 
-      <NoiseBackground />
-      <FloatingElements />
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+            <div>
+              <div className="mb-2">
+                <span className="px-4 py-2 rounded-full bg-white/10 text-sm font-medium border border-white/20 inline-flex items-center">
+                  <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                  {currentTime} • {currentUser}
+                </span>
+              </div>
 
-      <Header />
-
-      <main className="pt-24 pb-20 min-h-screen bg-gray-900 relative z-10">
-        <div className="container mx-auto px-4">
-          <Tab.Group onChange={() => {}}>
-            <Tab.List className="flex flex-wrap gap-2 mb-8">
-              <Tab
-                as={motion.div}
-                initial="inactive"
-                animate={activeTab === 0 ? "active" : "inactive"}
-                variants={tabVariants}
-                className={({ selected }: { selected: boolean }) =>
-                  `px-6 py-3 rounded-lg flex items-center gap-2 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                    selected
-                      ? "bg-blue-500/20 text-white border border-blue-500/50 shadow-lg shadow-blue-500/10"
-                      : "bg-gray-800/40 hover:bg-gray-800/70 text-gray-300 border border-gray-700"
-                  }`
-                }
+              <h1
+                ref={headlineRef}
+                className="text-4xl md:text-5xl font-bold mb-2"
               >
-                <FaRoad className="text-blue-400" />
-                <span>Career Paths</span>
-              </Tab>
+                <span className="gradient-text">Career</span>{" "}
+                <span>Simulator</span>{" "}
+                <span className="relative inline-block">
+                  AI
+                  <svg
+                    className="absolute -bottom-2 left-0 w-full"
+                    viewBox="0 0 200 8"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M0,5 Q40,0 80,5 T160,5 T240,5"
+                      fill="none"
+                      stroke="url(#gradient)"
+                      strokeWidth="2"
+                    />
+                    <defs>
+                      <linearGradient
+                        id="gradient"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop offset="0%" stopColor="#38bdf8" />
+                        <stop offset="50%" stopColor="#d946ef" />
+                        <stop offset="100%" stopColor="#2dd4bf" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </span>
+              </h1>
+              <p className="text-lg text-gray-300 max-w-lg">
+                Explore potential career paths based on your skills and
+                interests with AI-powered guidance
+              </p>
+            </div>
+          </div>
 
-              <Tab
-                as={motion.div}
-                initial="inactive"
-                animate={activeTab === 1 ? "active" : "inactive"}
-                variants={tabVariants}
-                className={({ selected }: { selected: boolean }) =>
-                  `px-6 py-3 rounded-lg flex items-center gap-2 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                    selected
-                      ? "bg-purple-500/20 text-white border border-purple-500/50 shadow-lg shadow-purple-500/10"
-                      : "bg-gray-800/40 hover:bg-gray-800/70 text-gray-300 border border-gray-700"
-                  }`
-                }
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1">
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className="bg-white/5 backdrop-blur-md rounded-xl shadow-md border border-white/10 p-6 sticky top-20"
               >
-                <FaPuzzlePiece className="text-purple-400" />
-                <span>Skill Analysis</span>
-              </Tab>
+                <h2 className="text-xl font-bold text-white mb-6 flex items-center">
+                  <User className="h-5 w-5 mr-2 text-indigo-400" />
+                  Your Profile
+                </h2>
 
-              <Tab
-                as={motion.div}
-                initial="inactive"
-                animate={activeTab === 2 ? "active" : "inactive"}
-                variants={tabVariants}
-                className={({ selected }: { selected: boolean }) =>
-                  `px-6 py-3 rounded-lg flex items-center gap-2 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                    selected
-                      ? "bg-emerald-500/20 text-white border border-emerald-500/50 shadow-lg shadow-emerald-500/10"
-                      : "bg-gray-800/40 hover:bg-gray-800/70 text-gray-300 border border-gray-700"
-                  }`
-                }
-              >
-                <FaBriefcase className="text-emerald-400" />
-                <span>Job Matches</span>
-              </Tab>
-            </Tab.List>
-
-            <Tab.Panels>
-              {/* Career Paths Panel */}
-              <Tab.Panel>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-1 space-y-4">
-                    <div className="bg-gray-800/30 backdrop-blur-md border border-gray-700/50 rounded-xl p-4 shadow-lg">
-                      <h2 className="text-xl font-semibold mb-4 flex items-center">
-                        <FaRoad className="mr-2 text-blue-400" /> Your Career
-                        Paths
-                      </h2>
-
-                      <div className="space-y-3">
-                        {careerPathsData.map((path) => (
-                          <motion.div
-                            key={path.id}
-                            onClick={() => setActivePath(path)}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            className={`p-4 rounded-lg cursor-pointer transition-all duration-300 ${
-                              activePath.id === path.id
-                                ? "bg-blue-500/20 border border-blue-500/40 shadow-lg shadow-blue-500/5"
-                                : "bg-gray-800/40 border border-gray-700 hover:border-blue-500/30"
-                            }`}
-                          >
-                            <div className="flex justify-between">
-                              <h3 className="font-medium">{path.title}</h3>
-                              <span className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">
-                                {path.currentLevel}
-                              </span>
-                            </div>
-
-                            <div className="mt-2">
-                              <div className="text-xs text-gray-400 mb-1">
-                                Progress
-                              </div>
-                              <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${path.progress}%` }}
-                                  transition={{ duration: 1, delay: 0.2 }}
-                                  className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
-                                ></motion.div>
-                              </div>
-                              <div className="flex justify-between text-xs mt-1">
-                                <span>Started</span>
-                                <span>{path.progress}%</span>
-                                <span>Completed</span>
-                              </div>
-                            </div>
-                          </motion.div>
-                        ))}
-
-                        <button className="w-full p-4 rounded-lg border border-dashed border-gray-600 hover:border-blue-400 text-gray-400 hover:text-blue-400 transition-colors hover:bg-blue-500/5 duration-300">
-                          <div className="flex items-center justify-center">
-                            <svg
-                              className="w-5 h-5 mr-2"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                              />
-                            </svg>
-                            <span>Explore More Paths</span>
+                <div className="mb-6">
+                  <h3 className="font-medium text-white mb-3">Top Skills</h3>
+                  <div className="space-y-3">
+                    {userSkills
+                      .sort((a, b) => b.level - a.level)
+                      .slice(0, 5)
+                      .map((skill) => (
+                        <div
+                          key={skill.id}
+                          className="flex justify-between items-center"
+                        >
+                          <div className="flex items-center gap-2">
+                            <BadgeCheck className="h-4 w-4 text-indigo-400" />
+                            <span className="text-gray-300">{skill.name}</span>
                           </div>
-                        </button>
-                      </div>
-                    </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-2 bg-white/10 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-600"
+                                style={{ width: `${skill.level}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm font-medium text-gray-300">
+                              {skill.level}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                   </div>
 
-                  {/* Path details and visualization */}
-                  <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-gray-800/30 backdrop-blur-md border border-gray-700/50 rounded-xl p-6 shadow-lg">
-                      <h2 className="text-2xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                        {activePath.title}
-                      </h2>
-                      <p className="text-gray-400 mb-6">
-                        {activePath.description}
-                      </p>
+                  <div className="mt-3">
+                    <Link href="/skill-assessment">
+                      <span className="inline-block w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white font-medium hover:bg-white/15 transition-all text-center">
+                        Add More Skills
+                      </span>
+                    </Link>
+                  </div>
+                </div>
 
-                      <div className="space-y-6">
-                        <div>
-                          <h3 className="text-lg font-semibold mb-3 flex items-center">
-                            <FaRoad className="mr-2 text-blue-400" /> Milestones
-                          </h3>
-                          <div className="space-y-3">
-                            {activePath.milestones.map((milestone, index) => (
-                              <div
-                                key={milestone.id}
-                                className="relative pl-8 pb-3"
-                              >
-                                <div
-                                  className={`absolute top-0 left-2 h-full w-0.5 ${
-                                    milestone.complete
-                                      ? "bg-blue-500"
-                                      : "bg-gray-700"
-                                  }`}
-                                ></div>
-                                <motion.div
-                                  whileHover={{ scale: 1.1 }}
-                                  className={`absolute top-1 left-0 w-4 h-4 rounded-full flex items-center justify-center ${
-                                    milestone.complete
-                                      ? "bg-blue-500"
-                                      : "bg-gray-700"
-                                  }`}
-                                >
-                                  {milestone.complete && (
-                                    <svg
-                                      className="w-2.5 h-2.5 text-white"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        fillRule="evenodd"
-                                        clipRule="evenodd"
-                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      />
-                                    </svg>
-                                  )}
-                                </motion.div>
-                                <div
-                                  className={
-                                    index === activePath.milestones.length - 1
-                                      ? "pb-0"
-                                      : ""
-                                  }
-                                >
-                                  <h4
-                                    className={`font-medium ${
-                                      milestone.complete
-                                        ? "text-white"
-                                        : "text-gray-400"
-                                    }`}
-                                  >
-                                    {milestone.title}
-                                  </h4>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                <div className="mb-6">
+                  <h3 className="font-medium text-white mb-3">
+                    Career Interests
+                  </h3>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {userInterests.map((interest) => (
+                      <Badge
+                        key={interest}
+                        className="bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border-none cursor-pointer"
+                      >
+                        {interest}
+                        <button
+                          className="ml-1 text-gray-400 hover:text-white transition-colors"
+                          onClick={() => removeInterest(interest)}
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <h3 className="text-lg font-semibold mb-3 flex items-center">
-                              <FaGraduationCap className="mr-2 text-purple-400" />{" "}
-                              Skills Acquired
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                              {activePath.skills.acquired.map((skill) => (
-                                <motion.span
-                                  key={skill}
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-100 text-sm border border-purple-500/30"
-                                >
-                                  {skill}
-                                </motion.span>
-                              ))}
-                            </div>
-                          </div>
+                  <div className="flex gap-2">
+                    <input
+                      placeholder="Add interest..."
+                      value={newInterest}
+                      onChange={(e) => setNewInterest(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          addInterest();
+                        }
+                      }}
+                      className="flex-1 px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                    <button
+                      onClick={addInterest}
+                      className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white font-medium hover:bg-white/15 transition-all"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
 
-                          <div>
-                            <h3 className="text-lg font-semibold mb-3 flex items-center">
-                              <FaLightbulb className="mr-2 text-amber-400" />{" "}
-                              Recommended Skills
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                              {activePath.skills.recommended.map((skill) => (
-                                <motion.span
-                                  key={skill}
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  className="px-3 py-1 rounded-full bg-gray-800 border border-amber-500/30 text-gray-300 text-sm"
-                                >
-                                  {skill}
-                                </motion.span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <h3 className="text-lg font-semibold mb-3 flex items-center">
-                            <FaRocket className="mr-2 text-blue-400" />{" "}
-                            Recommended Next Steps
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {activePath.nextSteps.map((step) => (
-                              <motion.div
-                                key={step.id}
-                                whileHover={{ y: -5 }}
-                                transition={{ type: "spring", stiffness: 300 }}
-                                className="p-4 rounded-lg bg-gray-800/70 border border-gray-700 hover:border-blue-500/50 transition-colors shadow-lg"
-                              >
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <div className="flex items-center">
-                                      {step.type === "course" ? (
-                                        <FaGraduationCap className="text-purple-400 mr-2" />
-                                      ) : (
-                                        <FaTrophy className="text-amber-400 mr-2" />
-                                      )}
-                                      <span className="text-xs uppercase text-gray-400">
-                                        {step.type}
-                                      </span>
-                                    </div>
-                                    <h4 className="font-medium mt-1">
-                                      {step.title}
-                                    </h4>
-                                    <p className="text-sm text-gray-400 mt-1">
-                                      {step.provider} • {step.duration}
-                                    </p>
-                                  </div>
-
-                                  <div className="text-right">
-                                    <div className="text-sm font-medium text-blue-400">
-                                      {step.matchScore}%
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      Match
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="mt-3 flex justify-end">
-                                  <button className="px-3 py-1 text-sm rounded bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors">
-                                    View Details
-                                  </button>
-                                </div>
-                              </motion.div>
-                            ))}
-                          </div>
-                        </div>
+                <div className="mb-6">
+                  <h3 className="font-medium text-white mb-3">
+                    Experience Level
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <User className="h-5 w-5 text-indigo-400" />
+                    <div className="flex-1">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-400">Entry Level</span>
+                        <span className="text-gray-400">Expert</span>
                       </div>
-                    </div>
-
-                    <div className="bg-gray-800/30 backdrop-blur-md border border-gray-700/50 rounded-xl p-6 overflow-hidden h-[400px] shadow-lg">
-                      <h3 className="text-lg font-semibold mb-2">
-                        Career Path Visualization
-                      </h3>
-                      <p className="text-sm text-gray-400 mb-4">
-                        Interactive 3D visualization of your selected career
-                        path
-                      </p>
-                      <div className="h-[300px] w-full">
-                        <VisualizationScene activeTab={0} />
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-indigo-500 to-purple-600"
+                          style={{ width: "30%" }}
+                        ></div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </Tab.Panel>
 
-              {/* Skill Analysis Panel */}
-              <Tab.Panel>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Skill Gap Analysis */}
-                  <div className="lg:col-span-2">
-                    <div className="bg-gray-800/30 backdrop-blur-md border border-gray-700/50 rounded-xl p-6 mb-6 shadow-lg">
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <div className="mb-6">
+                  <h3 className="font-medium text-white mb-3">
+                    Preferred Locations
+                  </h3>
+                  <div className="space-y-2">
+                    {userProfile.career.preferredLocations.map(
+                      (location: string, index: number) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-purple-400" />
+                          <span className="text-gray-300">{location}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() =>
+                    generateRecommendations(userSkills, userProfile)
+                  }
+                  disabled={loadingRecommendations}
+                  className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingRecommendations
+                    ? "Generating..."
+                    : "Regenerate Recommendations"}
+                </button>
+              </motion.div>
+            </div>
+
+            <div className="lg:col-span-2 space-y-8">
+              {loadingRecommendations ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="bg-white/5 backdrop-blur-md rounded-xl shadow-md border border-white/10 p-8 flex flex-col items-center justify-center min-h-[300px]"
+                >
+                  <div className="h-12 w-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <p className="text-lg font-medium text-white">
+                    Generating career recommendations...
+                  </p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Using AI to analyze your skills and interests for the best
+                    career matches
+                  </p>
+                </motion.div>
+              ) : careerRecommendations ? (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="bg-white/5 backdrop-blur-md rounded-xl shadow-md border border-white/10 p-6"
+                  >
+                    <h2 className="text-xl font-bold text-white mb-6 flex items-center">
+                      <LineChart className="h-5 w-5 mr-2 text-purple-400" />
+                      Recommended Career Paths
+                    </h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      {careerRecommendations.careerPaths.map(
+                        (path: any, index: number) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.1 }}
+                          >
+                            <button
+                              className={`w-full p-4 rounded-lg text-left transition-all ${
+                                selectedCareerPath?.title === path.title
+                                  ? "bg-indigo-500/20 border border-indigo-500/50"
+                                  : "bg-white/5 border border-white/10 hover:bg-white/10 hover:border-indigo-500/30"
+                              }`}
+                              onClick={() => setSelectedCareerPath(path)}
+                            >
+                              <div className="font-semibold text-white mb-2">
+                                {path.title}
+                              </div>
+                              <div className="flex justify-between items-center mb-2">
+                                <div className="text-sm text-gray-400">
+                                  Match Score
+                                </div>
+                                <div className="text-sm font-medium text-gray-300">
+                                  {path.suitabilityScore}%
+                                </div>
+                              </div>
+                              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-600"
+                                  style={{ width: `${path.suitabilityScore}%` }}
+                                ></div>
+                              </div>
+                            </button>
+                          </motion.div>
+                        )
+                      )}
+                    </div>
+                  </motion.div>
+
+                  {selectedCareerPath && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                      className="bg-white/5 backdrop-blur-md rounded-xl shadow-md border border-white/10 p-6"
+                    >
+                      <div className="flex justify-between items-start mb-6">
                         <div>
-                          <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
-                            Skill Gap Analysis
+                          <h2 className="text-2xl font-bold text-white">
+                            {selectedCareerPath.title}
                           </h2>
                           <p className="text-gray-400">
-                            From {skillGapsData.currentRole} to{" "}
-                            {skillGapsData.desiredRole}
+                            Career path analysis based on your profile
+                          </p>
+                        </div>
+                        <Badge
+                          className={
+                            selectedCareerPath.suitabilityScore > 80
+                              ? "bg-indigo-500/30 text-indigo-300 border-none"
+                              : "bg-white/10 text-gray-300 border-white/20"
+                          }
+                        >
+                          {selectedCareerPath.suitabilityScore}% Match
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all">
+                          <div className="flex items-center gap-2 mb-3">
+                            <DollarSign className="h-5 w-5 text-indigo-400" />
+                            <h3 className="font-semibold text-white">
+                              Potential Salary
+                            </h3>
+                          </div>
+                          <div className="text-2xl font-bold text-white mb-1">
+                            {selectedCareerPath.salaryCap}
+                          </div>
+                          <p className="text-sm text-gray-400">
+                            Average max compensation
                           </p>
                         </div>
 
-                        <motion.div
-                          className="mt-4 md:mt-0"
-                          whileHover={{ scale: 1.05 }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 400,
-                            damping: 10,
-                          }}
-                        >
-                          <div className="bg-gray-800/80 rounded-full px-4 py-1 flex items-center shadow-lg border border-purple-500/30">
-                            <div className="text-2xl font-bold mr-2 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
-                              {skillGapsData.matchPercentage}%
-                            </div>
-                            <div className="text-xs text-gray-400 leading-tight">
-                              Skills
-                              <br />
-                              Match
-                            </div>
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Briefcase className="h-5 w-5 text-purple-400" />
+                            <h3 className="font-semibold text-white">
+                              Open Positions
+                            </h3>
                           </div>
-                        </motion.div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div>
-                          <h3 className="text-lg font-semibold mb-3 flex items-center">
-                            <FaGraduationCap className="mr-2 text-purple-400" />{" "}
-                            Skills You Have
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {skillGapsData.coreSkills.acquired.map((skill) => (
-                              <motion.span
-                                key={skill}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-100 text-sm border border-purple-500/30"
-                              >
-                                {skill}
-                              </motion.span>
-                            ))}
+                          <div className="text-2xl font-bold text-white mb-1">
+                            1,240+
                           </div>
+                          <p className="text-sm text-gray-400">
+                            Current job openings
+                          </p>
                         </div>
 
-                        <div>
-                          <h3 className="text-lg font-semibold mb-3 flex items-center">
-                            <FaPuzzlePiece className="mr-2 text-pink-400" />{" "}
-                            Skills To Acquire
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {skillGapsData.coreSkills.missing.map((skill) => (
-                              <motion.span
-                                key={skill}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="px-3 py-1 rounded-full bg-gray-800 border border-pink-500/30 text-gray-300 text-sm"
-                              >
-                                {skill}
-                              </motion.span>
-                            ))}
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all">
+                          <div className="flex items-center gap-2 mb-3">
+                            <TrendingUp className="h-5 w-5 text-teal-400" />
+                            <h3 className="font-semibold text-white">
+                              Growth Rate
+                            </h3>
                           </div>
+                          <div className="text-2xl font-bold text-white mb-1">
+                            +18%
+                          </div>
+                          <p className="text-sm text-gray-400">
+                            Expected job growth (5yr)
+                          </p>
                         </div>
                       </div>
 
-                      <div className="overflow-hidden h-[300px] mt-2">
-                        <VisualizationScene activeTab={1} />
-                      </div>
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                            <BadgeCheck className="h-5 w-5 mr-2 text-indigo-400" />
+                            Skill Analysis
+                          </h3>
 
-                  {/* Recommendations */}
-                  <div className="lg:col-span-1">
-                    <div className="bg-gray-800/30 backdrop-blur-md border border-gray-700/50 rounded-xl p-6 mb-6 shadow-lg">
-                      <h3 className="text-lg font-semibold mb-4 flex items-center">
-                        <FaLightbulb className="mr-2 text-amber-400" /> Learning
-                        Recommendations
-                      </h3>
+                          <div className="mb-4">
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-gray-400">
+                                Current Skill Match
+                              </span>
+                              <span className="font-medium text-gray-300">
+                                {selectedCareerPath.currentMatchPercentage}%
+                              </span>
+                            </div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-600"
+                                style={{
+                                  width: `${selectedCareerPath.currentMatchPercentage}%`,
+                                }}
+                              ></div>
+                            </div>
+                          </div>
 
-                      <div className="space-y-4">
-                        {skillGapsData.recommendations.map((recommendation) => (
-                          <motion.div
-                            key={recommendation.id}
-                            whileHover={{
-                              y: -5,
-                              boxShadow:
-                                "0 10px 25px -5px rgba(124, 58, 237, 0.1)",
-                            }}
-                            transition={{ type: "spring", stiffness: 300 }}
-                            className="p-4 rounded-lg bg-gray-800/70 border border-gray-700 hover:border-purple-500/50 transition-all duration-300 shadow-lg"
-                          >
-                            <h4 className="font-medium">
-                              {recommendation.title}
-                            </h4>
-                            <p className="text-sm text-gray-400 mt-1">
-                              {recommendation.description}
-                            </p>
+                          <div className="space-y-3">
+                            {selectedCareerPath.requiredSkills.map(
+                              (skill: string, index: number) => {
+                                const userSkill = userSkills.find(
+                                  (s) => s.name === skill
+                                );
+                                const hasSkill = !!userSkill;
 
-                            <div className="mt-3 p-3 rounded bg-gray-900/50 text-sm backdrop-blur-sm">
-                              <div className="font-medium bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
-                                {recommendation.resource.title}
-                              </div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                {recommendation.resource.provider} •{" "}
-                                {recommendation.resource.duration}
-                              </div>
-                              <div className="mt-2">
-                                <a
-                                  href={recommendation.resource.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center text-purple-400 hover:text-purple-300 text-xs group"
-                                >
-                                  <span>View Resource</span>
-                                  <svg
-                                    className="w-3 h-3 ml-1 transform transition-transform group-hover:translate-x-1"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
+                                return (
+                                  <div
+                                    key={index}
+                                    className="flex justify-between items-center p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth="2"
-                                      d="M9 5l7 7-7 7"
-                                    />
-                                  </svg>
-                                </a>
+                                    <div className="flex items-center gap-2">
+                                      {hasSkill ? (
+                                        <CheckCircle2 className="h-4 w-4 text-teal-400" />
+                                      ) : (
+                                        <Target className="h-4 w-4 text-amber-400" />
+                                      )}
+                                      <span className="text-gray-300">
+                                        {skill}
+                                      </span>
+                                    </div>
+                                    {hasSkill ? (
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                          <div
+                                            className="h-full bg-gradient-to-r from-indigo-500 to-purple-600"
+                                            style={{
+                                              width: `${userSkill.level}%`,
+                                            }}
+                                          ></div>
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-400">
+                                          {userSkill.level}/100
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <Badge className="bg-amber-500/20 text-amber-300 border-none text-xs">
+                                        Needed
+                                      </Badge>
+                                    )}
+                                  </div>
+                                );
+                              }
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                            <GraduationCap className="h-5 w-5 mr-2 text-purple-400" />
+                            Action Plan
+                          </h3>
+
+                          <div className="space-y-4" ref={timelineRef}>
+                            {selectedCareerPath.recommendations.map(
+                              (recommendation: string, index: number) => (
+                                <div
+                                  key={index}
+                                  className="timeline-item flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                                >
+                                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 text-sm font-medium">
+                                    {index + 1}
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-white">
+                                      {recommendation}
+                                    </div>
+                                    <div className="text-sm text-gray-400 mt-1">
+                                      {index === 0
+                                        ? "Immediate priority"
+                                        : index === 1
+                                        ? "Within 3 months"
+                                        : "Within 6 months"}
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            )}
+
+                            <div className="timeline-item flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-teal-500/20 text-teal-300 text-sm font-medium">
+                                <CheckCircle2 className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-white">
+                                  Ready for job applications
+                                </div>
+                                <div className="text-sm text-gray-400 mt-1">
+                                  After completing the recommended steps
+                                </div>
                               </div>
                             </div>
-                          </motion.div>
-                        ))}
-
-                        <motion.button
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          className="w-full p-3 rounded-lg border border-dashed border-gray-600 hover:border-purple-400 text-gray-400 hover:text-purple-400 transition-colors hover:bg-purple-500/5 text-sm"
-                        >
-                          <div className="flex items-center justify-center">
-                            <svg
-                              className="w-5 h-5 mr-2"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                              />
-                            </svg>
-                            <span>View More Recommendations</span>
                           </div>
-                        </motion.button>
+                        </div>
                       </div>
-                    </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                          <Building className="h-5 w-5 mr-2 text-indigo-400" />
+                          Top Companies Hiring
+                        </h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="flex items-center gap-4 p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                            <div className="w-12 h-12 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                              <Building className="h-6 w-6 text-indigo-300" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-white">
+                                TechInnovate
+                              </div>
+                              <div className="text-sm text-gray-400 flex items-center">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                San Francisco, CA
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                            <div className="w-12 h-12 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                              <Building className="h-6 w-6 text-indigo-300" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-white">
+                                DataSci Solutions
+                              </div>
+                              <div className="text-sm text-gray-400 flex items-center">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                Remote
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                            <div className="w-12 h-12 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                              <Building className="h-6 w-6 text-indigo-300" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-white">
+                                AI Research Lab
+                              </div>
+                              <div className="text-sm text-gray-400 flex items-center">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                Boston, MA
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                            <div className="w-12 h-12 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                              <Building className="h-6 w-6 text-indigo-300" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-white">
+                                Global Tech
+                              </div>
+                              <div className="text-sm text-gray-400 flex items-center">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                Austin, TX
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                        <Link href="/marketplace">
+                          <SparkleButton
+                            href="/marketplace"
+                            className="w-full sm:w-auto px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 transition-all"
+                          >
+                            Find Relevant Courses
+                            <GraduationCap className="ml-2 h-5 w-5" />
+                          </SparkleButton>
+                        </Link>
+
+                        <Link href="/careers">
+                          <span className="inline-flex items-center justify-center w-full sm:w-auto px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-medium hover:bg-white/15 transition-all group">
+                            Explore Job Opportunities
+                            <Briefcase className="ml-2 h-5 w-5 transform transition-transform duration-300 group-hover:translate-x-1" />
+                          </span>
+                        </Link>
+                      </div>
+                    </motion.div>
+                  )}
+                </>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="bg-white/5 backdrop-blur-md rounded-xl shadow-md border border-white/10 p-8 flex flex-col items-center justify-center min-h-[300px]"
+                >
+                  <div className="text-center max-w-md">
+                    <h3 className="text-xl font-semibold text-white mb-3">
+                      No Recommendations Generated
+                    </h3>
+                    <p className="text-gray-400 mb-6">
+                      Add more skills and interests to generate career
+                      recommendations that match your profile.
+                    </p>
+                    <button
+                      onClick={() =>
+                        generateRecommendations(userSkills, userProfile)
+                      }
+                      className="px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 transition-all"
+                    >
+                      Generate Recommendations
+                    </button>
                   </div>
-                </div>
-              </Tab.Panel>
-            </Tab.Panels>
-          </Tab.Group>
+                </motion.div>
+              )}
+            </div>
+          </div>
         </div>
-      </main>
+
+        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10">
+          <motion.div
+            initial={{ y: -10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{
+              delay: 1.2,
+              duration: 0.5,
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
+          >
+            <Link href="#resources">
+              <span className="flex flex-col items-center text-gray-400 hover:text-white transition-colors duration-300">
+                <span className="text-sm mb-2">Explore more resources</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 5L12 19"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M19 12L12 19L5 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+            </Link>
+          </motion.div>
+        </div>
+
+        {/* Global styles to match Hero.tsx */}
+        <style jsx global>{`
+          @keyframes float {
+            0% {
+              transform: translateY(0px);
+            }
+            50% {
+              transform: translateY(-20px);
+            }
+            100% {
+              transform: translateY(0px);
+            }
+          }
+
+          /* Gradient text styles */
+          .gradient-text {
+            background: linear-gradient(to right, #38bdf8, #d946ef, #2dd4bf);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+          }
+        `}</style>
+      </div>
     </Layout>
   );
-};
-
-export default CareerGuidancePage;
+}
