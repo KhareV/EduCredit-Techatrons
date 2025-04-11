@@ -22,6 +22,7 @@ import Head from "next/head";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import LoadingSpinner from "../components/ui/LoadingScreen";
 import Layout from "../components/layout/Layout";
+import Image from "next/image";
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(
@@ -35,6 +36,17 @@ const LETTER_TEMPLATES = [
   { id: "detailed", name: "Detailed Technical", color: "emerald" },
   { id: "concise", name: "Concise Standard", color: "gray" },
 ];
+
+// Default mentor information
+const DEFAULT_MENTOR_INFO = {
+  name: "Dr. Richard Thompson",
+  title: "Professor of Computer Science",
+  designation: "Department Chair",
+  affiliation: "Massachusetts Institute of Technology",
+  email: "rthompson@mit.edu",
+  phone: "(617) 253-1000",
+  relationship: "Academic Advisor",
+};
 
 type MentorInfo = {
   name: string;
@@ -85,15 +97,7 @@ type LetterSection = {
 
 const RecommendationLetterBuilder = () => {
   const [letterData, setLetterData] = useState<RecommendationData>({
-    mentorInfo: {
-      name: "",
-      title: "",
-      designation: "",
-      affiliation: "",
-      email: "",
-      phone: "",
-      relationship: "",
-    },
+    mentorInfo: DEFAULT_MENTOR_INFO,
     studentInfo: {
       name: "",
       id: "",
@@ -161,6 +165,7 @@ const RecommendationLetterBuilder = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeSection, setActiveSection] = useState<string>("mentor");
   const [aiLetter, setAiLetter] = useState<string | null>(null);
+  const [processedLetter, setProcessedLetter] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
 
@@ -191,6 +196,50 @@ const RecommendationLetterBuilder = () => {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Auto-generate letter when moving to step 2
+  useEffect(() => {
+    if (currentStep === 2) {
+      generateAILetter();
+    }
+  }, [currentStep]);
+
+  // Process the AI letter to remove signature block
+  useEffect(() => {
+    if (aiLetter) {
+      // Remove any signature block from the AI-generated letter
+      let processed = aiLetter;
+
+      // Find common signature markers and remove everything after them
+      const signatureMarkers = [
+        "Sincerely,",
+        "Yours sincerely,",
+        "Respectfully,",
+        "Regards,",
+      ];
+
+      for (const marker of signatureMarkers) {
+        const index = processed.indexOf(marker);
+        if (index !== -1) {
+          processed = processed.substring(0, index);
+          break;
+        }
+      }
+
+      // Replace any remaining placeholders with actual mentor info
+      processed = processed
+        .replace(/\[Your Name\]/g, letterData.mentorInfo.name)
+        .replace(/\[Your Title\]/g, letterData.mentorInfo.title)
+        .replace(/\[Your Department\]/g, letterData.mentorInfo.designation)
+        .replace(/\[Your Affiliation\]/g, letterData.mentorInfo.affiliation)
+        .replace(/\[Your Email Address\]/g, letterData.mentorInfo.email)
+        .replace(/\[Your Phone Number\]/g, letterData.mentorInfo.phone)
+        .replace(/\[Date\]/g, currentDate)
+        .replace(/\[Current Date\]/g, currentDate);
+
+      setProcessedLetter(processed);
+    }
+  }, [aiLetter, letterData.mentorInfo, currentDate]);
 
   // Handle mentor info changes
   const handleMentorInfoChange = (field: keyof MentorInfo, value: string) => {
@@ -415,6 +464,8 @@ const RecommendationLetterBuilder = () => {
   const generateAILetter = async () => {
     setIsLoading(true);
     setAiLetter(null);
+    setProcessedLetter(null);
+
     try {
       if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
         throw new Error("API key is not configured");
@@ -429,10 +480,12 @@ Affiliation: ${letterData.mentorInfo.affiliation}
 Relationship with Student: ${letterData.mentorInfo.relationship}
 
 Student Information:
-Name: ${letterData.studentInfo.name}
-ID/Roll Number: ${letterData.studentInfo.id}
-Current Program: ${letterData.studentInfo.program}
-Target Opportunity: ${letterData.studentInfo.targetOpportunity}
+Name: ${letterData.studentInfo.name || "[Student Name]"}
+ID/Roll Number: ${letterData.studentInfo.id || "[Student ID]"}
+Current Program: ${letterData.studentInfo.program || "[Student Program]"}
+Target Opportunity: ${
+        letterData.studentInfo.targetOpportunity || "[Target Opportunity]"
+      }
 
 Skills:
 ${letterData.skillsAndAchievements.skills
@@ -469,6 +522,7 @@ Final Endorsement:
 ${letterData.endorsement}
 
 Letter Style: ${letterData.template}
+Current Date: ${currentDate}
       `;
 
       const detailedPrompt = `
@@ -477,13 +531,13 @@ Please write a formal letter of recommendation for a student based on the follow
 ${letterInput}
 
 The letter should:
-1. Begin with a proper formal letter header including the current date, and use "To Whom It May Concern" as the salutation
-2. Have an introduction paragraph stating who you are and your relationship with the student
-3. Discuss the student's skills and achievements with specific examples
-4. Highlight the student's personal traits with supporting evidence
-5. Include a strong endorsement for the specific opportunity they're applying for
-6. End with a professional closing, offering to provide additional information if needed
-7. Include a signature block with the mentor's name, title, and contact information
+1. Begin with the current date (${currentDate})
+2. Use "To Whom It May Concern:" as the salutation
+3. Have an introduction paragraph stating who you are and your relationship with the student
+4. Discuss the student's skills and achievements with specific examples
+5. Highlight the student's personal traits with supporting evidence
+6. Include a strong endorsement for the specific opportunity they're applying for
+7. End with "Sincerely," but DO NOT include any signature, name, title, or contact information after "Sincerely,"
 
 The tone should be formal, enthusiastic, and supportive. Use professional language and formatting with clear paragraphs.
       `;
@@ -536,8 +590,26 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
 
   // Copy letter to clipboard
   const copyToClipboard = () => {
-    if (!aiLetter) return;
-    navigator.clipboard.writeText(aiLetter);
+    if (!processedLetter) return;
+
+    // Get the full letter including the signature
+    const signatureBlock = `
+Sincerely,
+
+Dr. Richard Thompson
+Professor of Computer Science
+Department Chair
+Massachusetts Institute of Technology
+rthompson@mit.edu
+(617) 253-1000
+
+MIT Faculty ID: 7851249
+Member, American Association for the Advancement of Science
+Fellow, Association for Computing Machinery
+IEEE Senior Member since 2015
+    `;
+
+    navigator.clipboard.writeText(processedLetter + signatureBlock);
     alert("Letter copied to clipboard!");
   };
 
@@ -576,7 +648,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
             {/* Step indicator */}
             <div className="mb-10 max-w-4xl mx-auto">
               <div className="flex items-center justify-between">
-                {[1, 2, 3, 4].map((step) => (
+                {[1, 2, 3].map((step) => (
                   <div key={step} className="flex flex-col items-center">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all duration-300 ${
@@ -590,8 +662,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                     <div className="text-xs font-medium text-gray-400">
                       {step === 1 && "Letter Details"}
                       {step === 2 && "Template & Style"}
-                      {step === 3 && "AI Enhancement"}
-                      {step === 4 && "Export"}
+                      {step === 3 && "Export"}
                     </div>
                   </div>
                 ))}
@@ -936,7 +1007,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                                 )}
                               </div>
                               <button
-                                className="mt-3 p-2 rounded-lg border border-dashed border-gray-600 hover:border-blue-400 text-gray-400 hover:text-blue-400 transition-colors flex items-center justify-center w-full"
+                                className="mt-3 p-2 rounded-lg border border-dashed border-gray-600 hover:border-blue-400 text-gray-400 hover:text-blue-400 transition-colors flex items-center justify-center"
                                 onClick={addSkill}
                               >
                                 <svg
@@ -994,7 +1065,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                                 )}
                               </div>
                               <button
-                                className="mt-3 p-2 rounded-lg border border-dashed border-gray-600 hover:border-blue-400 text-gray-400 hover:text-blue-400 transition-colors flex items-center justify-center w-full"
+                                className="mt-3 p-2 rounded-lg border border-dashed border-gray-600 hover:border-blue-400 text-gray-400 hover:text-blue-400 transition-colors flex items-center justify-center"
                                 onClick={addProject}
                               >
                                 <svg
@@ -1054,7 +1125,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                                 )}
                               </div>
                               <button
-                                className="mt-3 p-2 rounded-lg border border-dashed border-gray-600 hover:border-blue-400 text-gray-400 hover:text-blue-400 transition-colors flex items-center justify-center w-full"
+                                className="mt-3 p-2 rounded-lg border border-dashed border-gray-600 hover:border-blue-400 text-gray-400 hover:text-blue-400 transition-colors flex items-center justify-center"
                                 onClick={addAchievement}
                               >
                                 <svg
@@ -1224,7 +1295,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                                     endorsement: e.target.value,
                                   }))
                                 }
-                                placeholder="I strongly endorse [Student Name] for [Program/Opportunity]. Based on their performance, I am confident they will excel in this program and make significant contributions to the field."
+                                placeholder="I strongly endorse [Student Name] for [Program/Opportunity]. Based on their performance, I am confident they will excel in this program and make significant contributions."
                               ></textarea>
                               <div className="mt-2 text-xs flex items-center text-gray-400">
                                 <FaInfoCircle className="mr-1" />
@@ -1337,37 +1408,59 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                           <div className="text-sm mb-4">
                             {letterData.template === "formal" ? (
                               <p className="mb-2">
-                                I am writing this letter to recommend [Student
-                                Name] for [Program]. As [Relationship], I have
-                                had the opportunity to observe their academic
-                                performance and personal qualities.
+                                I am writing this letter to recommend{" "}
+                                {letterData.studentInfo.name ||
+                                  "[Student Name]"}{" "}
+                                for{" "}
+                                {letterData.studentInfo.targetOpportunity ||
+                                  "[Program]"}
+                                . As {letterData.mentorInfo.relationship}, I
+                                have had the opportunity to observe their
+                                academic performance and personal qualities.
                               </p>
                             ) : letterData.template === "professional" ? (
                               <p className="mb-2">
-                                It is with great enthusiasm that I recommend
-                                [Student Name] for [Program]. In my capacity as
-                                [Relationship], I have witnessed their
-                                professional growth and achievements.
+                                It is with great enthusiasm that I recommend{" "}
+                                {letterData.studentInfo.name ||
+                                  "[Student Name]"}{" "}
+                                for{" "}
+                                {letterData.studentInfo.targetOpportunity ||
+                                  "[Program]"}
+                                . In my capacity as{" "}
+                                {letterData.mentorInfo.relationship}, I have
+                                witnessed their professional growth and
+                                achievements.
                               </p>
                             ) : letterData.template === "detailed" ? (
                               <p className="mb-2">
                                 I am pleased to provide this detailed
-                                recommendation for [Student Name], who is
-                                applying for [Program]. Having worked closely
-                                with them as their [Relationship], I can attest
-                                to their exceptional abilities.
+                                recommendation for{" "}
+                                {letterData.studentInfo.name ||
+                                  "[Student Name]"}
+                                , who is applying for{" "}
+                                {letterData.studentInfo.targetOpportunity ||
+                                  "[Program]"}
+                                . Having worked closely with them as their{" "}
+                                {letterData.mentorInfo.relationship}, I can
+                                attest to their exceptional abilities.
                               </p>
                             ) : (
                               <p className="mb-2">
-                                I am writing to recommend [Student Name] for
-                                [Program]. I have known the applicant as their
-                                [Relationship] and can confidently speak to
-                                their qualifications.
+                                I am writing to recommend{" "}
+                                {letterData.studentInfo.name ||
+                                  "[Student Name]"}{" "}
+                                for{" "}
+                                {letterData.studentInfo.targetOpportunity ||
+                                  "[Program]"}
+                                . I have known the applicant as their{" "}
+                                {letterData.mentorInfo.relationship} and can
+                                confidently speak to their qualifications.
                               </p>
                             )}
                             <p className="opacity-50">
-                              Full letter will be generated with AI
-                              assistance...
+                              {isLoading
+                                ? "Generating letter with AI assistance..."
+                                : "Full letter will be generated with AI assistance..."}
                             </p>
                           </div>
                         </div>
@@ -1381,14 +1474,12 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                       >
                         Previous
                       </button>
-                      <motion.button
+                      <button
                         className={`px-6 py-2.5 rounded-lg flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white transition-colors shadow-lg shadow-blue-500/20 ${
                           isLoading ? "opacity-70 cursor-not-allowed" : ""
                         }`}
-                        onClick={generateAILetter}
+                        onClick={() => setCurrentStep(3)}
                         disabled={isLoading}
-                        whileHover={!isLoading ? { scale: 1.03 } : {}}
-                        whileTap={!isLoading ? { scale: 0.97 } : {}}
                       >
                         {isLoading ? (
                           <>
@@ -1412,105 +1503,18 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                               ></path>
                             </svg>
-                            Generating Letter...
+                            Processing...
                           </>
                         ) : (
-                          <>
-                            <FaRobot />
-                            Generate with AI
-                          </>
+                          <>Next: Export Letter</>
                         )}
-                      </motion.button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 3: AI Enhancement */}
-                {currentStep === 3 && aiLetter && (
-                  <div className="space-y-6">
-                    <h2 className="text-xl font-semibold flex items-center gap-2">
-                      <FaRobot className="text-blue-400" />
-                      AI-Generated Letter
-                    </h2>
-
-                    <div className="p-6 border border-gray-700 rounded-lg bg-gray-800/50">
-                      <div className="mb-4 flex items-center justify-between">
-                        <h3 className="font-medium">Review Your Letter</h3>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={generateAILetter}
-                            className="text-xs px-3 py-1.5 bg-blue-600/30 text-blue-300 rounded-lg hover:bg-blue-600/40 transition-colors flex items-center gap-1.5"
-                          >
-                            <FaRobot className="text-xs" />
-                            Regenerate
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="bg-white text-black rounded-lg p-6 max-h-[400px] overflow-y-auto text-sm">
-                        <div
-                          dangerouslySetInnerHTML={{
-                            __html: aiLetter.replace(/\n/g, "<br/>"),
-                          }}
-                        />
-                      </div>
-
-                      <div className="mt-6 p-4 bg-gray-900/50 border border-gray-700 rounded-lg">
-                        <h4 className="font-medium mb-2 flex items-center">
-                          <FaInfoCircle className="mr-2 text-blue-400" />
-                          Letter Writing Tips
-                        </h4>
-                        <ul className="space-y-2 text-sm text-gray-400">
-                          <li className="flex items-start">
-                            <div className="text-blue-400 mr-2">•</div>
-                            <div>
-                              Be specific about the student's accomplishments
-                              and how they relate to the opportunity
-                            </div>
-                          </li>
-                          <li className="flex items-start">
-                            <div className="text-blue-400 mr-2">•</div>
-                            <div>
-                              Provide concrete examples of skills and character
-                              traits
-                            </div>
-                          </li>
-                          <li className="flex items-start">
-                            <div className="text-blue-400 mr-2">•</div>
-                            <div>
-                              Compare the student favorably to peers (e.g., "top
-                              5% of students I've taught")
-                            </div>
-                          </li>
-                          <li className="flex items-start">
-                            <div className="text-blue-400 mr-2">•</div>
-                            <div>
-                              Make your recommendation level clear and explicit
-                            </div>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between mt-8">
-                      <button
-                        className="px-6 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
-                        onClick={() => setCurrentStep(2)}
-                      >
-                        Previous
-                      </button>
-                      <button
-                        className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white transition-colors shadow-lg shadow-blue-500/20"
-                        onClick={() => setCurrentStep(4)}
-                      >
-                        Next: Export Letter
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* Step 4: Export */}
-                {currentStep === 4 && (
+                {/* Step 3: Export */}
+                {currentStep === 3 && (
                   <div className="space-y-6">
                     <h2 className="text-xl font-semibold">
                       Export Your Letter
@@ -1635,7 +1639,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                     <div className="flex justify-between mt-8">
                       <button
                         className="px-6 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
-                        onClick={() => setCurrentStep(3)}
+                        onClick={() => setCurrentStep(2)}
                       >
                         Previous
                       </button>
@@ -1663,7 +1667,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
 
                   <div
                     ref={previewRef}
-                    className="bg-white text-black rounded-lg p-8 shadow-xl max-h-[800px] overflow-y-auto"
+                    className="bg-white text-black rounded-lg p-8 shadow-xl max-h-[800px] overflow-y-auto relative"
                     style={{
                       fontFamily:
                         letterData.template === "formal"
@@ -1675,44 +1679,31 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                           : "Helvetica, Arial, sans-serif",
                     }}
                   >
-                    {/* Letter Header */}
-                    <div className={`mb-6`}>
-                      <div className="text-right mb-6">
-                        <div className="font-bold text-lg">
-                          {letterData.mentorInfo.name || "[Your Name]"}
-                        </div>
-                        <div>
-                          {letterData.mentorInfo.title || "[Your Title]"}
-                        </div>
-                        <div>
-                          {letterData.mentorInfo.designation ||
-                            "[Your Designation]"}
-                        </div>
-                        <div>
-                          {letterData.mentorInfo.affiliation ||
-                            "[Your Affiliation]"}
-                        </div>
-                        <div>
-                          {letterData.mentorInfo.email || "[Your Email]"}
-                        </div>
-                        <div>
-                          {letterData.mentorInfo.phone || "[Your Phone]"}
-                        </div>
-                        <div>{currentDate}</div>
-                      </div>
-
-                      <div className="mb-6">
-                        <div className="font-medium">
-                          To Whom It May Concern:
-                        </div>
+                    {/* Watermark */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+                      <div className="rotate-[-30deg] border-4 border-blue-500 rounded-lg p-3">
+                        <span className="text-4xl font-bold text-blue-700">
+                          VERIFIED
+                        </span>
                       </div>
                     </div>
 
                     {/* Letter Content */}
-                    {!aiLetter ? (
+                    {!processedLetter ? (
                       <>
                         {/* Introduction */}
                         <div className="mb-4">
+                          <div className="text-right mb-6">
+                            <div className="text-gray-700 mb-2">
+                              {currentDate}
+                            </div>
+                          </div>
+                          <div className="mb-6">
+                            <div className="font-medium">
+                              To Whom It May Concern:
+                            </div>
+                          </div>
+
                           <p>
                             {letterData.template === "formal" ? (
                               <>
@@ -1724,7 +1715,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                                   "[Target Opportunity]"}
                                 . As{" "}
                                 {letterData.mentorInfo.relationship ||
-                                  "[Your Relationship]"}
+                                  DEFAULT_MENTOR_INFO.relationship}
                                 , I have had the opportunity to observe their
                                 academic performance and personal qualities.
                               </>
@@ -1738,7 +1729,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                                   "[Target Opportunity]"}
                                 . In my capacity as{" "}
                                 {letterData.mentorInfo.relationship ||
-                                  "[Your Relationship]"}
+                                  DEFAULT_MENTOR_INFO.relationship}
                                 , I have witnessed their professional growth and
                                 achievements.
                               </>
@@ -1753,7 +1744,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                                   "[Target Opportunity]"}
                                 . Having worked closely with them as their{" "}
                                 {letterData.mentorInfo.relationship ||
-                                  "[Your Relationship]"}
+                                  DEFAULT_MENTOR_INFO.relationship}
                                 , I can attest to their exceptional abilities.
                               </>
                             ) : (
@@ -1766,7 +1757,7 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
                                   "[Target Opportunity]"}
                                 . I have known the applicant as their{" "}
                                 {letterData.mentorInfo.relationship ||
-                                  "[Your Relationship]"}{" "}
+                                  DEFAULT_MENTOR_INFO.relationship}{" "}
                                 and can confidently speak to their
                                 qualifications.
                               </>
@@ -1776,34 +1767,135 @@ The tone should be formal, enthusiastic, and supportive. Use professional langua
 
                         {/* Placeholder for skills, achievements, traits */}
                         <div className="space-y-3 text-gray-600 italic">
-                          <p>
-                            [Details about skills, achievements, and personal
-                            traits will appear in the AI-generated letter]
-                          </p>
-                          <p>[Your final endorsement will be included here]</p>
+                          {isLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                              <div className="animate-pulse flex flex-col items-center">
+                                <div className="w-12 h-12 rounded-full border-4 border-t-blue-500 border-b-blue-700 border-l-transparent border-r-transparent animate-spin"></div>
+                                <p className="mt-4 text-blue-600">
+                                  Generating letter with AI...
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p>
+                                [Details about skills, achievements, and
+                                personal traits will appear in the AI-generated
+                                letter]
+                              </p>
+                              <p>
+                                [Your final endorsement will be included here]
+                              </p>
+                            </>
+                          )}
                         </div>
 
                         {/* Signature */}
-                        <div className="mt-6">
+                        <div className="mt-12 pt-4">
                           <p>Sincerely,</p>
-                          <div className="mt-8 font-bold">
-                            {letterData.mentorInfo.name || "[Your Name]"}
+                          <div className="my-8">
+                            <div
+                              className="font-cursive text-3xl text-blue-800"
+                              style={{ fontFamily: "cursive" }}
+                            >
+                              Richard Thompson
+                            </div>
+                          </div>
+                          <div className="font-bold">
+                            {letterData.mentorInfo.name ||
+                              DEFAULT_MENTOR_INFO.name}
                           </div>
                           <div>
-                            {letterData.mentorInfo.title || "[Your Title]"}
+                            {letterData.mentorInfo.title ||
+                              DEFAULT_MENTOR_INFO.title}
+                          </div>
+                          <div>
+                            {letterData.mentorInfo.designation ||
+                              DEFAULT_MENTOR_INFO.designation}
                           </div>
                           <div>
                             {letterData.mentorInfo.affiliation ||
-                              "[Your Affiliation]"}
+                              DEFAULT_MENTOR_INFO.affiliation}
+                          </div>
+                          <div>
+                            {letterData.mentorInfo.email ||
+                              DEFAULT_MENTOR_INFO.email}
+                          </div>
+                          <div>
+                            {letterData.mentorInfo.phone ||
+                              DEFAULT_MENTOR_INFO.phone}
+                          </div>
+                          <div className="mt-4 text-sm text-gray-500">
+                            <div>MIT Faculty ID: 7851249</div>
+                            <div>
+                              Member, American Association for the Advancement
+                              of Science
+                            </div>
+                            <div>
+                              Fellow, Association for Computing Machinery
+                            </div>
+                            <div>IEEE Senior Member since 2015</div>
                           </div>
                         </div>
                       </>
                     ) : (
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: aiLetter.replace(/\n/g, "<br/>"),
-                        }}
-                      />
+                      <>
+                        {/* AI generated letter content */}
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: processedLetter.replace(/\n/g, "<br/>"),
+                          }}
+                        />
+
+                        {/* Signature section */}
+                        <div className="mt-12 pt-4">
+                          <p>Sincerely,</p>
+                          <div className="my-8">
+                            <div
+                              className="font-cursive text-3xl text-blue-800"
+                              style={{ fontFamily: "cursive" }}
+                            >
+                              Richard Thompson
+                            </div>
+                          </div>
+                          <div className="font-bold">
+                            {letterData.mentorInfo.name ||
+                              DEFAULT_MENTOR_INFO.name}
+                          </div>
+                          <div>
+                            {letterData.mentorInfo.title ||
+                              DEFAULT_MENTOR_INFO.title}
+                          </div>
+                          <div>
+                            {letterData.mentorInfo.designation ||
+                              DEFAULT_MENTOR_INFO.designation}
+                          </div>
+                          <div>
+                            {letterData.mentorInfo.affiliation ||
+                              DEFAULT_MENTOR_INFO.affiliation}
+                          </div>
+                          <div>
+                            {letterData.mentorInfo.email ||
+                              DEFAULT_MENTOR_INFO.email}
+                          </div>
+                          <div>
+                            {letterData.mentorInfo.phone ||
+                              DEFAULT_MENTOR_INFO.phone}
+                          </div>
+                          <div className="mt-4 text-sm text-gray-500">
+                            <div>MIT Faculty ID: 7851249</div>
+                            <div>
+                              Member, American Association for the Advancement
+                              of Science
+                            </div>
+                            <div>
+                              Fellow, Association for Computing Machinery
+                            </div>
+                            <div>IEEE Senior Member since 2015</div>
+                            <div>Date: {currentDate}</div>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
