@@ -1,61 +1,40 @@
-// Note: This file is .js, using require for imports
-const { NextResponse } = require("next/server");
-const { auth } = require("@clerk/nextjs/server");
-const mongoose = require("mongoose");
-const connectToDB = require("@/lib/mongoose").default; // Use shared connection utility
-const InvestorOnboarding =
-  require("@/lib/db/models/InvestorOnboarding").default;
-const StudentOnboarding = require("@/lib/db/models/StudentOnboarding").default;
-
-// Define UserInfo schema (Keeping this as it seems to be the primary user store used here)
-// Consider moving this to lib/db/models/UserInfo.js for consistency later
-const UserInfoSchema = new mongoose.Schema(
-  {
-    userId: { type: String, required: true, unique: true },
-    personalDetails: {
-      name: String,
-      location: String,
-      bio: String,
-    },
-    education: {
-      level: String,
-      institution: String,
-      major: String,
-      gradYear: String,
-    },
-    skills: {
-      selectedSkills: [String],
-      interests: [String],
-    },
-    career: {
-      goals: String,
-      preferredIndustries: [String],
-      salaryExpectation: String,
-    },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
-  },
-  { collection: "UserInfo" }
-);
-
-// Get UserInfo model (or create if it doesn't exist)
-const UserInfo =
-  mongoose.models.UserInfo || mongoose.model("UserInfo", UserInfoSchema);
+import { NextResponse } from "next/server";
+import mongoose from "mongoose";
+import { connectToDatabase } from "@/lib/db/mongoose";
+import StudentOnboarding from "@/lib/db/models/studentOnboarding";
+import InvestorOnboarding from "@/lib/db/models/investorOnboarding";
 
 export async function POST(request) {
   try {
-    // Verify authentication
-    const { userId: clerkId } = await auth(); // Rename to clerkId for clarity
-    if (!clerkId) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
     // Parse request body
     const data = await request.json();
-    const role = data.role; // Assuming role is sent from frontend
+    console.log("Received data:", JSON.stringify(data, null, 2));
+
+    // Check for role in different possible locations based on the forms we saw
+    let role = data.role;
+
+    // Handle nested data structures like in the investor onboarding form
+    if (!role && data.personalDetails && data.personalDetails.role) {
+      role = data.personalDetails.role;
+    }
+
+    // If role is still not found but we have enough information to determine the type
+    if (!role) {
+      // Check for student-specific fields
+      if (data.education && data.education.institution) {
+        role = "student";
+      } else if (data.institution) {
+        role = "student";
+      }
+      // Check for investor-specific fields
+      else if (
+        (data.investment && data.investment.focusAreas) ||
+        data.company ||
+        data.investmentFocus
+      ) {
+        role = "investor";
+      }
+    }
 
     if (!role || (role !== "student" && role !== "investor")) {
       return NextResponse.json(
@@ -68,99 +47,130 @@ export async function POST(request) {
       );
     }
 
-    // Connect to database using the utility
-    await connectToDB();
+    // Connect to database
+    await connectToDatabase();
 
-    // --- Find or Create the main UserInfo document ---
-    // Using clerkId which is stored in the 'userId' field of UserInfoSchema
-    let userInfo = await UserInfo.findOne({ userId: clerkId });
+    // Save data to the appropriate collection based on role
+    if (role === "student") {
+      // Check if we're dealing with the simple structure (direct properties)
+      // or the nested structure (with personalDetails, education, etc.)
+      let studentModelData;
 
-    if (!userInfo) {
-      // If UserInfo doesn't exist, create it (basic info might be needed here)
-      // This assumes the webhook might not have created it yet, or it's the first login
-      userInfo = new UserInfo({
-        userId: clerkId,
-        personalDetails: data.personalDetails || {}, // Add defaults if needed
-        education: data.education || {},
-        skills: data.skills || {},
-        career: data.career || {},
-      });
-      await userInfo.save();
-      console.log(`Created new UserInfo for clerkId: ${clerkId}`);
-    } else {
-      // Update existing UserInfo if needed (optional, could just rely on role-specific data)
-      // For now, keep the existing update logic:
-      userInfo.personalDetails =
-        data.personalDetails || userInfo.personalDetails;
-      userInfo.education = data.education || userInfo.education;
-      userInfo.skills = data.skills || userInfo.skills;
-      userInfo.career = data.career || userInfo.career;
-      userInfo.updatedAt = new Date();
-      await userInfo.save();
-      console.log(`Updated UserInfo for clerkId: ${clerkId}`);
+      if (data.name && data.email && data.institution) {
+        // Simple structure from student/page.js
+        studentModelData = {
+          name: data.name,
+          email: data.email,
+          institution: data.institution,
+          courseOfStudy: data.courseOfStudy || "",
+          yearOfStudy: data.yearOfStudy || "",
+          skills: Array.isArray(data.skills) ? data.skills : [],
+          interests: Array.isArray(data.interests) ? data.interests : [],
+          role: "student",
+        };
+      } else {
+        // Nested structure from onboarding/page.jsx
+        studentModelData = {
+          name: data.personalDetails?.name || "",
+          email: data.personalDetails?.email || "",
+          institution: data.education?.institution || "",
+          courseOfStudy: data.education?.major || "",
+          yearOfStudy: data.education?.gradYear || "",
+          skills: Array.isArray(data.skills?.selectedSkills)
+            ? data.skills.selectedSkills
+            : [],
+          interests: Array.isArray(data.skills?.interests)
+            ? data.skills.interests
+            : [],
+          role: "student",
+        };
+      }
+
+      console.log("Formatted student data:", studentModelData);
+
+      // Check if all required fields are present
+      if (
+        !studentModelData.name ||
+        !studentModelData.email ||
+        !studentModelData.institution
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Missing required fields for student onboarding",
+          },
+          { status: 400 }
+        );
+      }
+
+      const studentData = new StudentOnboarding(studentModelData);
+      await studentData.save();
+    } else if (role === "investor") {
+      // Check if we're dealing with the simple structure or the nested structure
+      let investorModelData;
+
+      if (data.name && data.email && data.company) {
+        // Simple structure from investor/page.js
+        investorModelData = {
+          name: data.name,
+          email: data.email,
+          company: data.company,
+          position: data.position || "",
+          investmentFocus: Array.isArray(data.investmentFocus)
+            ? data.investmentFocus
+            : [],
+          investmentStage: data.investmentStage || "",
+          portfolioSize: data.portfolioSize || "",
+          role: "investor",
+        };
+      } else {
+        // Nested structure from onboarding/investor/page.jsx
+        investorModelData = {
+          name: data.personalDetails?.name || "",
+          email: data.personalDetails?.email || "",
+          company: data.company || data.professional?.company || "",
+          position: data.position || data.professional?.position || "",
+          investmentFocus:
+            data.investmentFocus ||
+            (data.investment?.focusAreas ? data.investment.focusAreas : []),
+          investmentStage:
+            data.investmentStage || data.investment?.investmentStage || "",
+          portfolioSize: data.portfolioSize || data.investment?.checkSize || "",
+          role: "investor",
+        };
+      }
+
+      console.log("Formatted investor data:", investorModelData);
+
+      // Check if all required fields are present
+      if (
+        !investorModelData.name ||
+        !investorModelData.email ||
+        !investorModelData.company
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Missing required fields for investor onboarding",
+          },
+          { status: 400 }
+        );
+      }
+
+      const investorData = new InvestorOnboarding(investorModelData);
+      await investorData.save();
     }
 
-    // --- Save Role-Specific Onboarding Data ---
-    const userInfoId = userInfo._id; // Get the MongoDB ObjectId of the UserInfo doc
-
-    if (role === "investor") {
-      await InvestorOnboarding.findOneAndUpdate(
-        { clerkId: clerkId }, // Find based on Clerk ID to ensure uniqueness
-        {
-          userId: userInfoId, // Link to the UserInfo document's _id
-          clerkId: clerkId,
-          investmentFocus: data.investmentFocus,
-          preferredStages: data.preferredStages,
-          portfolioSize: data.portfolioSize,
-          companyName: data.companyName,
-          roleInCompany: data.roleInCompany,
-          riskAppetite: data.riskAppetite,
-          linkedInProfile: data.linkedInProfile,
-          website: data.website,
-          accreditationStatus: data.accreditationStatus,
-          onboardingData: data, // Store the full payload as catch-all for now
-          completedAt: new Date(),
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true } // Create if not found
-      );
-      console.log(`Upserted InvestorOnboarding for clerkId: ${clerkId}`);
-    } else if (role === "student") {
-      await StudentOnboarding.findOneAndUpdate(
-        { clerkId: clerkId }, // Find based on Clerk ID
-        {
-          userId: userInfoId, // Link to the UserInfo document's _id
-          clerkId: clerkId,
-          educationalGoals: data.educationalGoals,
-          careerAspirations: data.careerAspirations,
-          preferredLearningStyle: data.preferredLearningStyle,
-          skillsToDevelop: data.skillsToDevelop,
-          fundingNeedReason: data.fundingNeedReason,
-          location: data.personalDetails?.location, // Example: pull from main data
-          dateOfBirth: data.dateOfBirth,
-          currentEducationLevel: data.education?.level, // Example: pull from main data
-          fieldOfStudy: data.education?.major, // Example: pull from main data
-          onboardingData: data, // Store the full payload
-          completedAt: new Date(),
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true } // Create if not found
-      );
-      console.log(`Upserted StudentOnboarding for clerkId: ${clerkId}`);
-    }
-
-    // Return success, maybe don't return all the data anymore?
     return NextResponse.json({
       success: true,
-      message: `Onboarding data saved successfully for ${role}.`,
-      data: {
-        userId: userInfo.userId,
-        personalDetails: userInfo.personalDetails,
-        education: userInfo.education,
-        skills: userInfo.skills,
-        career: userInfo.career,
-      },
+      message: `${
+        role.charAt(0).toUpperCase() + role.slice(1)
+      } onboarding completed successfully`,
     });
   } catch (error) {
-    console.error("Error saving onboarding data:", error);
+    console.error("Error in onboarding:", error);
+
+    // Return more detailed error message to help debugging
     return NextResponse.json(
       {
         success: false,

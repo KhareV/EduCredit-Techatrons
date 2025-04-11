@@ -11,18 +11,19 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  Briefcase,
-  GraduationCap,
+  School,
+  BookOpen,
   BadgeCheck,
   CheckCircle2,
-  DollarSign,
+  Code,
+  Lightbulb,
   AlertCircle,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import Layout from "../components/layout/Layout";
+import Layout from "../../components/layout/Layout";
 
 // Current user information
-const currentTime = "2025-04-05 17:35:56";
+const currentTime = "2025-04-11 13:58:14";
 const currentUser = "vkhare2909";
 
 // Define steps
@@ -30,34 +31,22 @@ const steps = [
   "Personal Details",
   "Educational Background",
   "Skills & Interests",
-  "Career Goals",
+  "Summary",
 ];
 
-export default function OnboardingPage() {
+export default function StudentOnboardingPage() {
   const router = useRouter();
   const { user, isLoaded, isSignedIn } = useUser();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
-    personalDetails: {
-      name: "",
-      location: "",
-      bio: "",
-    },
-    education: {
-      level: "high_school",
-      institution: "",
-      major: "",
-      gradYear: "",
-    },
-    skills: {
-      selectedSkills: [],
-      interests: [],
-    },
-    career: {
-      goals: "",
-      preferredIndustries: [],
-      salaryExpectation: "",
-    },
+    name: "",
+    email: "",
+    institution: "",
+    courseOfStudy: "",
+    yearOfStudy: "",
+    skills: [],
+    interests: [],
+    role: "student", // Add role field
   });
 
   const [errors, setErrors] = useState({});
@@ -76,60 +65,58 @@ export default function OnboardingPage() {
     if (isLoaded && user) {
       setFormData((prev) => ({
         ...prev,
-        personalDetails: {
-          ...prev.personalDetails,
-          name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
-          // You could also set the email from user.primaryEmailAddress.emailAddress if needed
-        },
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        email: user.primaryEmailAddress?.emailAddress || "",
       }));
     }
   }, [isLoaded, user]);
 
   // Handle input change
-  const handleInputChange = (section, field, value) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value,
-      },
+      [name]: value,
     }));
 
     // Clear error when field is updated
-    if (errors[`${section}.${field}`]) {
+    if (errors[name]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
-        delete newErrors[`${section}.${field}`];
+        delete newErrors[name];
         return newErrors;
       });
     }
   };
 
-  // Handle array fields (skills, interests, etc.)
-  const handleArrayUpdate = (section, field, value, action) => {
-    setFormData((prev) => {
-      const current = [...prev[section][field]];
+  // Handle skills change
+  const handleSkillsChange = (skill, action) => {
+    if (action === "add" && !formData.skills.includes(skill)) {
+      setFormData((prev) => ({
+        ...prev,
+        skills: [...prev.skills, skill],
+      }));
+    } else if (action === "remove") {
+      setFormData((prev) => ({
+        ...prev,
+        skills: prev.skills.filter((s) => s !== skill),
+      }));
+    }
+  };
 
-      if (action === "add" && !current.includes(value)) {
-        return {
-          ...prev,
-          [section]: {
-            ...prev[section],
-            [field]: [...current, value],
-          },
-        };
-      } else if (action === "remove") {
-        return {
-          ...prev,
-          [section]: {
-            ...prev[section],
-            [field]: current.filter((item) => item !== value),
-          },
-        };
-      }
-
-      return prev;
-    });
+  // Handle interests change
+  const handleInterestsChange = (interest, action) => {
+    if (action === "add" && !formData.interests.includes(interest)) {
+      setFormData((prev) => ({
+        ...prev,
+        interests: [...prev.interests, interest],
+      }));
+    } else if (action === "remove") {
+      setFormData((prev) => ({
+        ...prev,
+        interests: prev.interests.filter((i) => i !== interest),
+      }));
+    }
   };
 
   // Handle next step
@@ -139,25 +126,29 @@ export default function OnboardingPage() {
 
     if (currentStep === 0) {
       // Validate personal details
-      if (!formData.personalDetails.name) {
-        currentErrors["personalDetails.name"] = "Name is required";
+      if (!formData.name) {
+        currentErrors.name = "Name is required";
       }
-      if (!formData.personalDetails.location) {
-        currentErrors["personalDetails.location"] = "Location is required";
+      if (!formData.email) {
+        currentErrors.email = "Email is required";
+      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+        currentErrors.email = "Email is invalid";
       }
     } else if (currentStep === 1) {
-      // Validate education
-      if (!formData.education.institution) {
-        currentErrors["education.institution"] = "Institution is required";
+      // Validate educational background
+      if (!formData.institution) {
+        currentErrors.institution = "Institution is required";
       }
-      if (!formData.education.gradYear) {
-        currentErrors["education.gradYear"] = "Graduation year is required";
+      if (!formData.courseOfStudy) {
+        currentErrors.courseOfStudy = "Course of study is required";
+      }
+      if (!formData.yearOfStudy) {
+        currentErrors.yearOfStudy = "Year of study is required";
       }
     } else if (currentStep === 2) {
-      // Validate skills
-      if (formData.skills.selectedSkills.length === 0) {
-        currentErrors["skills.selectedSkills"] =
-          "Please select at least one skill";
+      // Validate skills & interests
+      if (formData.skills.length === 0) {
+        currentErrors.skills = "Please select at least one skill";
       }
     }
 
@@ -196,14 +187,14 @@ export default function OnboardingPage() {
         body: JSON.stringify(formData),
       });
 
-      const result = await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "Failed to save onboarding data");
+        throw new Error(data.message || "Failed to save onboarding data");
       }
 
       // Show success message
-      toast.success("Profile completed successfully!");
+      toast.success("Onboarding completed successfully!");
 
       // Redirect to dashboard
       setTimeout(() => {
@@ -212,7 +203,8 @@ export default function OnboardingPage() {
     } catch (error) {
       console.error("Error completing onboarding:", error);
       setApiError(error.message);
-      toast.error("Failed to save your profile. Please try again.");
+      toast.error("Failed to submit onboarding data");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -223,29 +215,45 @@ export default function OnboardingPage() {
     "Python",
     "React",
     "Node.js",
+    "HTML/CSS",
+    "Java",
+    "C++",
     "Data Analysis",
     "Machine Learning",
     "UI/UX Design",
-    "Product Management",
-    "Digital Marketing",
-    "Content Creation",
-    "Leadership",
-    "Project Management",
-    "Communication",
-    "Problem Solving",
+    "Mobile Development",
+    "Cloud Computing",
+    "DevOps",
+    "Blockchain",
   ];
 
-  // Sample industry options
-  const industryOptions = [
-    "Technology",
-    "Finance",
-    "Healthcare",
-    "Education",
-    "Media",
-    "Retail",
-    "Manufacturing",
-    "Consulting",
-    "Non-profit",
+  // Sample interest options
+  const interestOptions = [
+    "Web Development",
+    "AI & Machine Learning",
+    "Data Science",
+    "Mobile Apps",
+    "Game Development",
+    "Cybersecurity",
+    "Cloud Computing",
+    "Blockchain",
+    "IoT",
+    "Augmented Reality",
+    "Design",
+    "Product Management",
+    "Entrepreneurship",
+    "Open Source",
+  ];
+
+  // Sample year of study options
+  const yearOptions = [
+    "First Year",
+    "Second Year",
+    "Third Year",
+    "Fourth Year",
+    "Fifth Year",
+    "Masters",
+    "PhD",
   ];
 
   return (
@@ -268,11 +276,11 @@ export default function OnboardingPage() {
         <header className="border-b border-slate-800 backdrop-blur-sm bg-slate-900/50 z-10 relative">
           <div className="container mx-auto py-4 px-4 flex items-center justify-between">
             <div className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300">
-              SkillBridgege Pro
+              Student Onboarding
             </div>
             <Button
               variant="ghost"
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/dashboard/student")}
               className="text-slate-300 hover:text-white hover:bg-slate-800"
             >
               Skip for now
@@ -284,11 +292,11 @@ export default function OnboardingPage() {
           <div className="max-w-3xl mx-auto">
             <div className="mb-10">
               <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400">
-                Complete Your Profile
+                Complete Your Student Profile
               </h1>
               <p className="text-slate-400 mt-3">
-                Let's personalize your experience to help you get the most out
-                of SkillBridge Pro
+                Tell us more about yourself so we can personalize your
+                experience
               </p>
             </div>
 
@@ -392,72 +400,40 @@ export default function OnboardingPage() {
                             Full Name
                           </label>
                           <Input
-                            value={formData.personalDetails.name}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "personalDetails",
-                                "name",
-                                e.target.value
-                              )
-                            }
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
                             placeholder="Your full name"
                             className={`bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${
-                              errors["personalDetails.name"]
-                                ? "border-red-500"
-                                : ""
+                              errors.name ? "border-red-500" : ""
                             }`}
                           />
-                          {errors["personalDetails.name"] && (
+                          {errors.name && (
                             <p className="mt-1 text-sm text-red-400">
-                              {errors["personalDetails.name"]}
+                              {errors.name}
                             </p>
                           )}
                         </div>
 
                         <div>
                           <label className="block text-sm font-medium mb-2 text-slate-300">
-                            Location
+                            Email Address
                           </label>
                           <Input
-                            value={formData.personalDetails.location}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "personalDetails",
-                                "location",
-                                e.target.value
-                              )
-                            }
-                            placeholder="City, State/Province, Country"
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            placeholder="your.email@example.com"
                             className={`bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${
-                              errors["personalDetails.location"]
-                                ? "border-red-500"
-                                : ""
+                              errors.email ? "border-red-500" : ""
                             }`}
                           />
-                          {errors["personalDetails.location"] && (
+                          {errors.email && (
                             <p className="mt-1 text-sm text-red-400">
-                              {errors["personalDetails.location"]}
+                              {errors.email}
                             </p>
                           )}
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium mb-2 text-slate-300">
-                            Bio
-                          </label>
-                          <textarea
-                            value={formData.personalDetails.bio}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "personalDetails",
-                                "bio",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Tell us a little about yourself..."
-                            className="w-full rounded-md bg-slate-800/50 border border-slate-700 text-white placeholder:text-slate-500 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
-                            rows={4}
-                          />
                         </div>
                       </div>
                     </div>
@@ -467,110 +443,73 @@ export default function OnboardingPage() {
                   {currentStep === 1 && (
                     <div>
                       <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-white">
-                        <GraduationCap className="h-5 w-5 text-blue-400" />
+                        <School className="h-5 w-5 text-blue-400" />
                         Educational Background
                       </h2>
 
                       <div className="space-y-6">
                         <div>
                           <label className="block text-sm font-medium mb-2 text-slate-300">
-                            Education Level
-                          </label>
-                          <select
-                            value={formData.education.level}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "education",
-                                "level",
-                                e.target.value
-                              )
-                            }
-                            className="w-full rounded-md bg-slate-800/50 border border-slate-700 text-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
-                          >
-                            <option value="high_school">High School</option>
-                            <option value="some_college">Some College</option>
-                            <option value="associates">
-                              Associate's Degree
-                            </option>
-                            <option value="bachelors">Bachelor's Degree</option>
-                            <option value="masters">Master's Degree</option>
-                            <option value="doctorate">Doctorate</option>
-                            <option value="bootcamp">Bootcamp</option>
-                            <option value="self_taught">Self-Taught</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium mb-2 text-slate-300">
                             Institution
                           </label>
                           <Input
-                            value={formData.education.institution}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "education",
-                                "institution",
-                                e.target.value
-                              )
-                            }
-                            placeholder="School, college, or university name"
+                            name="institution"
+                            value={formData.institution}
+                            onChange={handleChange}
+                            placeholder="University, College or School name"
                             className={`bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${
-                              errors["education.institution"]
-                                ? "border-red-500"
-                                : ""
+                              errors.institution ? "border-red-500" : ""
                             }`}
                           />
-                          {errors["education.institution"] && (
+                          {errors.institution && (
                             <p className="mt-1 text-sm text-red-400">
-                              {errors["education.institution"]}
+                              {errors.institution}
                             </p>
                           )}
                         </div>
 
                         <div>
                           <label className="block text-sm font-medium mb-2 text-slate-300">
-                            Field of Study
+                            Course of Study
                           </label>
                           <Input
-                            value={formData.education.major}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "education",
-                                "major",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Major or field of study"
-                            className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            name="courseOfStudy"
+                            value={formData.courseOfStudy}
+                            onChange={handleChange}
+                            placeholder="E.g., Computer Science, Business, etc."
+                            className={`bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${
+                              errors.courseOfStudy ? "border-red-500" : ""
+                            }`}
                           />
+                          {errors.courseOfStudy && (
+                            <p className="mt-1 text-sm text-red-400">
+                              {errors.courseOfStudy}
+                            </p>
+                          )}
                         </div>
 
                         <div>
                           <label className="block text-sm font-medium mb-2 text-slate-300">
-                            Graduation Year
+                            Year of Study
                           </label>
-                          <Input
-                            type="number"
-                            value={formData.education.gradYear}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "education",
-                                "gradYear",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Graduation year (e.g., 2023)"
-                            min="1950"
-                            max="2030"
-                            className={`bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${
-                              errors["education.gradYear"]
-                                ? "border-red-500"
-                                : ""
+                          <select
+                            name="yearOfStudy"
+                            value={formData.yearOfStudy}
+                            onChange={handleChange}
+                            className={`w-full rounded-md bg-slate-800/50 border border-slate-700 text-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors ${
+                              errors.yearOfStudy ? "border-red-500" : ""
                             }`}
-                          />
-                          {errors["education.gradYear"] && (
+                          >
+                            <option value="">Select Year of Study</option>
+                            {yearOptions.map((year) => (
+                              <option key={year} value={year}>
+                                {year}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.yearOfStudy && (
                             <p className="mt-1 text-sm text-red-400">
-                              {errors["education.gradYear"]}
+                              {errors.yearOfStudy}
                             </p>
                           )}
                         </div>
@@ -589,15 +528,21 @@ export default function OnboardingPage() {
                       <div className="space-y-6">
                         <div>
                           <label className="block text-sm font-medium mb-2 text-slate-300">
+                            <Code className="h-5 w-5 text-blue-400 inline mr-2" />
                             Your Skills
                           </label>
                           <p className="text-sm text-slate-400 mb-4">
-                            Select the skills you have. You'll be able to verify
-                            these later.
+                            Select the technical skills you currently have
                           </p>
 
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {formData.skills.selectedSkills.map((skill) => (
+                          {errors.skills && (
+                            <p className="mt-1 mb-3 text-sm text-red-400">
+                              {errors.skills}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {formData.skills.map((skill) => (
                               <span
                                 key={skill}
                                 className="inline-flex items-center bg-blue-500/20 text-blue-300 text-sm px-3 py-1 rounded-full border border-blue-500/30"
@@ -606,12 +551,7 @@ export default function OnboardingPage() {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    handleArrayUpdate(
-                                      "skills",
-                                      "selectedSkills",
-                                      skill,
-                                      "remove"
-                                    )
+                                    handleSkillsChange(skill, "remove")
                                   }
                                   className="ml-1.5 h-4 w-4 rounded-full flex items-center justify-center hover:bg-blue-400/20 transition-colors"
                                 >
@@ -621,31 +561,17 @@ export default function OnboardingPage() {
                             ))}
                           </div>
 
-                          {errors["skills.selectedSkills"] && (
-                            <p className="mt-1 mb-3 text-sm text-red-400">
-                              {errors["skills.selectedSkills"]}
-                            </p>
-                          )}
-
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                             {skillOptions
                               .filter(
-                                (skill) =>
-                                  !formData.skills.selectedSkills.includes(
-                                    skill
-                                  )
+                                (skill) => !formData.skills.includes(skill)
                               )
                               .map((skill) => (
                                 <div
                                   key={skill}
                                   className="border border-slate-700 bg-slate-800/30 rounded-md p-2 cursor-pointer hover:bg-slate-800/70 hover:border-blue-500/30 transition-all duration-200"
                                   onClick={() =>
-                                    handleArrayUpdate(
-                                      "skills",
-                                      "selectedSkills",
-                                      skill,
-                                      "add"
-                                    )
+                                    handleSkillsChange(skill, "add")
                                   }
                                 >
                                   <span className="text-sm text-slate-300">
@@ -658,31 +584,27 @@ export default function OnboardingPage() {
 
                         <div>
                           <label className="block text-sm font-medium mb-2 text-slate-300">
+                            <Lightbulb className="h-5 w-5 text-blue-400 inline mr-2" />
                             Your Interests
                           </label>
                           <p className="text-sm text-slate-400 mb-4">
-                            Select topics you're interested in learning more
-                            about.
+                            Select areas you're interested in learning more
+                            about
                           </p>
 
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {formData.skills.interests.map((interest) => (
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {formData.interests.map((interest) => (
                               <span
                                 key={interest}
-                                className="inline-flex items-center bg-slate-800/50 text-slate-300 text-sm px-3 py-1 rounded-full border border-slate-700"
+                                className="inline-flex items-center bg-indigo-500/20 text-indigo-300 text-sm px-3 py-1 rounded-full border border-indigo-500/30"
                               >
                                 {interest}
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    handleArrayUpdate(
-                                      "skills",
-                                      "interests",
-                                      interest,
-                                      "remove"
-                                    )
+                                    handleInterestsChange(interest, "remove")
                                   }
-                                  className="ml-1.5 h-4 w-4 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors"
+                                  className="ml-1.5 h-4 w-4 rounded-full flex items-center justify-center hover:bg-indigo-400/20 transition-colors"
                                 >
                                   ×
                                 </button>
@@ -691,26 +613,21 @@ export default function OnboardingPage() {
                           </div>
 
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {skillOptions
+                            {interestOptions
                               .filter(
-                                (skill) =>
-                                  !formData.skills.interests.includes(skill)
+                                (interest) =>
+                                  !formData.interests.includes(interest)
                               )
-                              .map((skill) => (
+                              .map((interest) => (
                                 <div
-                                  key={skill}
-                                  className="border border-slate-700 bg-slate-800/30 rounded-md p-2 cursor-pointer hover:bg-slate-800/70 hover:border-slate-600 transition-all duration-200"
+                                  key={interest}
+                                  className="border border-slate-700 bg-slate-800/30 rounded-md p-2 cursor-pointer hover:bg-slate-800/70 hover:border-indigo-500/30 transition-all duration-200"
                                   onClick={() =>
-                                    handleArrayUpdate(
-                                      "skills",
-                                      "interests",
-                                      skill,
-                                      "add"
-                                    )
+                                    handleInterestsChange(interest, "add")
                                   }
                                 >
                                   <span className="text-sm text-slate-300">
-                                    {skill}
+                                    {interest}
                                   </span>
                                 </div>
                               ))}
@@ -720,121 +637,91 @@ export default function OnboardingPage() {
                     </div>
                   )}
 
-                  {/* Step 4: Career Goals */}
+                  {/* Step 4: Summary */}
                   {currentStep === 3 && (
                     <div>
                       <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-white">
-                        <Briefcase className="h-5 w-5 text-blue-400" />
-                        Career Goals
+                        <CheckCircle2 className="h-5 w-5 text-blue-400" />
+                        Review Your Information
                       </h2>
 
                       <div className="space-y-6">
-                        <div>
-                          <label className="block text-sm font-medium mb-2 text-slate-300">
-                            Career Objectives
-                          </label>
-                          <textarea
-                            value={formData.career.goals}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "career",
-                                "goals",
-                                e.target.value
-                              )
-                            }
-                            placeholder="What are your career goals? What do you hope to achieve professionally?"
-                            className="w-full rounded-md bg-slate-800/50 border border-slate-700 text-white placeholder:text-slate-500 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
-                            rows={4}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium mb-2 text-slate-300">
-                            Preferred Industries
-                          </label>
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {formData.career.preferredIndustries.map(
-                              (industry) => (
-                                <span
-                                  key={industry}
-                                  className="inline-flex items-center bg-indigo-500/20 text-indigo-300 text-sm px-3 py-1 rounded-full border border-indigo-500/30"
-                                >
-                                  {industry}
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleArrayUpdate(
-                                        "career",
-                                        "preferredIndustries",
-                                        industry,
-                                        "remove"
-                                      )
-                                    }
-                                    className="ml-1.5 h-4 w-4 rounded-full flex items-center justify-center hover:bg-indigo-400/20 transition-colors"
-                                  >
-                                    ×
-                                  </button>
-                                </span>
-                              )
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {industryOptions
-                              .filter(
-                                (industry) =>
-                                  !formData.career.preferredIndustries.includes(
-                                    industry
-                                  )
-                              )
-                              .map((industry) => (
-                                <div
-                                  key={industry}
-                                  className="border border-slate-700 bg-slate-800/30 rounded-md p-2 cursor-pointer hover:bg-slate-800/70 hover:border-indigo-500/30 transition-all duration-200"
-                                  onClick={() =>
-                                    handleArrayUpdate(
-                                      "career",
-                                      "preferredIndustries",
-                                      industry,
-                                      "add"
-                                    )
-                                  }
-                                >
-                                  <span className="text-sm text-slate-300">
-                                    {industry}
-                                  </span>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium mb-2 text-slate-300">
-                            Salary Expectations
-                          </label>
-                          <div className="relative">
-                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400">
-                              <DollarSign size={16} />
-                            </div>
-                            <Input
-                              type="number"
-                              value={formData.career.salaryExpectation}
-                              onChange={(e) =>
-                                handleInputChange(
-                                  "career",
-                                  "salaryExpectation",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Annual salary expectation (e.g., 60000)"
-                              className="pl-8 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            />
-                          </div>
-                          <p className="text-xs text-slate-400 mt-1">
-                            This helps us provide appropriate funding and career
-                            options
+                        <div className="bg-slate-800/40 rounded-lg p-4 border border-slate-700">
+                          <h3 className="font-medium text-blue-400 mb-2">
+                            Personal Details
+                          </h3>
+                          <p className="text-white mb-1">
+                            <span className="text-slate-400">Name:</span>{" "}
+                            {formData.name}
+                          </p>
+                          <p className="text-white">
+                            <span className="text-slate-400">Email:</span>{" "}
+                            {formData.email}
                           </p>
                         </div>
+
+                        <div className="bg-slate-800/40 rounded-lg p-4 border border-slate-700">
+                          <h3 className="font-medium text-blue-400 mb-2">
+                            Educational Background
+                          </h3>
+                          <p className="text-white mb-1">
+                            <span className="text-slate-400">Institution:</span>{" "}
+                            {formData.institution}
+                          </p>
+                          <p className="text-white mb-1">
+                            <span className="text-slate-400">
+                              Course of Study:
+                            </span>{" "}
+                            {formData.courseOfStudy}
+                          </p>
+                          <p className="text-white">
+                            <span className="text-slate-400">
+                              Year of Study:
+                            </span>{" "}
+                            {formData.yearOfStudy}
+                          </p>
+                        </div>
+
+                        <div className="bg-slate-800/40 rounded-lg p-4 border border-slate-700">
+                          <h3 className="font-medium text-blue-400 mb-2">
+                            Skills & Interests
+                          </h3>
+                          <div className="mb-3">
+                            <span className="text-slate-400 block mb-2">
+                              Skills:
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              {formData.skills.map((skill) => (
+                                <span
+                                  key={skill}
+                                  className="inline-flex items-center bg-blue-500/20 text-blue-300 text-sm px-3 py-1 rounded-full"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block mb-2">
+                              Interests:
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              {formData.interests.map((interest) => (
+                                <span
+                                  key={interest}
+                                  className="inline-flex items-center bg-indigo-500/20 text-indigo-300 text-sm px-3 py-1 rounded-full"
+                                >
+                                  {interest}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <p className="text-slate-400 text-sm">
+                          Please review your information above. Click "Complete
+                          Onboarding" to submit, or go back to make changes.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -869,7 +756,7 @@ export default function OnboardingPage() {
                   </>
                 ) : currentStep === steps.length - 1 ? (
                   <>
-                    Complete Profile
+                    Complete Onboarding
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 ) : (
