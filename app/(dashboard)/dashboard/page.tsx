@@ -1233,7 +1233,9 @@ export default function StudentDashboard() {
         <footer className="fixed bottom-0 inset-x-0 z-30 bg-slate-900/80 backdrop-blur-lg border-t border-slate-800/50 py-2">
           <div className="container mx-auto px-4 flex items-center justify-between">
             <div className="text-sm text-slate-400">
-              <span className="font-medium text-slate-300">EduCredit Pro</span>{" "}
+              <span className="font-medium text-slate-300">
+                SkillBridgege Pro
+              </span>{" "}
               • Student Dashboard
             </div>
           </div>

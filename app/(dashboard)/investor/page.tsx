@@ -201,7 +201,7 @@ export default function InvestorDashboard() {
           <div className="container mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-8">
               <div className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300">
-                EduCredit Pro
+                SkillBridge Pro
               </div>
 
               <nav className="hidden md:flex items-center space-x-1">
@@ -1482,7 +1482,9 @@ export default function InvestorDashboard() {
         <footer className="fixed bottom-0 inset-x-0 z-30 bg-slate-900/80 backdrop-blur-lg border-t border-slate-800/50 py-2">
           <div className="container mx-auto px-4 flex items-center justify-between">
             <div className="text-sm text-slate-400">
-              <span className="font-medium text-slate-300">EduCredit Pro</span>{" "}
+              <span className="font-medium text-slate-300">
+                SkillBridge Pro
+              </span>{" "}
               • Investment Dashboard
             </div>
             <div className="flex items-center gap-4">

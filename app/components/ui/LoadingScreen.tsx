@@ -126,7 +126,7 @@ const LoadingScreen = () => {
                     backgroundSize: "200% auto",
                   }}
                 >
-                  EduCredit
+                  SkillBridge
                 </motion.h1>
 
                 {/* Glowing effect */}

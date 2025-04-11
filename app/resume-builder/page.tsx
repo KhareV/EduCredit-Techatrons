@@ -671,7 +671,7 @@ ${resumeData.skills.join(", ")}
     <>
       <Layout>
         <Head>
-          <title>AI Resume Builder | EduCredit</title>
+          <title>AI Resume Builder | SkillBridge</title>
           <meta
             name="description"
             content="Create an ATS-optimized resume with AI assistance"

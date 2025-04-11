@@ -294,7 +294,7 @@ export default function Features() {
           </h2>
 
           <p className="text-gray-400 max-w-2xl mx-auto">
-            EduCredit Pro combines AI-powered assessments, blockchain
+            SkillBridge Pro combines AI-powered assessments, blockchain
             verification, and innovative financing models to make education
             accessible and career advancement achievable.
           </p>

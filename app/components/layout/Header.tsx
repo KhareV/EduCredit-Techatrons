@@ -197,7 +197,7 @@ export default function Header() {
                 backgroundClip: "text",
               }}
             >
-              EduCredit
+              SkillBridge
             </span>
           </Link>
 

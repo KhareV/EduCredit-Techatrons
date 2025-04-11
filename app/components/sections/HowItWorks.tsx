@@ -131,7 +131,7 @@ export default function HowItWorks() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="text-3xl md:text-4xl font-bold mt-2 mb-4"
           >
-            How EduCredit Pro Works
+            How SkillBridge Pro Works
           </motion.h2>
 
           <motion.p

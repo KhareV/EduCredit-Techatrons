@@ -22,7 +22,7 @@ const testimonials = [
     image:
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80",
     quote:
-      "EduCredit Pro revolutionized my education journey. Their Income Share Agreement meant zero upfront costs for my coding bootcamp, and the AI-powered career simulator helped me map a clear path to becoming a senior engineer.",
+      "SkillBridge Pro revolutionized my education journey. Their Income Share Agreement meant zero upfront costs for my coding bootcamp, and the AI-powered career simulator helped me map a clear path to becoming a senior engineer.",
   },
   {
     id: 2,
@@ -42,7 +42,7 @@ const testimonials = [
     image:
       "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80",
     quote:
-      "As a career-changer, EduCredit Pro's investor matching was perfect. I secured funding based on my potential, not my credit score. The platform's mentor matching connected me with a senior designer who guided my transition into tech.",
+      "As a career-changer, SkillBridge Pro's investor matching was perfect. I secured funding based on my potential, not my credit score. The platform's mentor matching connected me with a senior designer who guided my transition into tech.",
   },
   {
     id: 4,
@@ -52,7 +52,7 @@ const testimonials = [
     image:
       "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80",
     quote:
-      "EduCredit Pro removed the financial barrier to my education. Their skills assessment accurately identified my strengths, and the career path simulator mapped my journey from bootcamp graduate to full stack developer. Now I'm earning triple my previous salary!",
+      "SkillBridge Pro removed the financial barrier to my education. Their skills assessment accurately identified my strengths, and the career path simulator mapped my journey from bootcamp graduate to full stack developer. Now I'm earning triple my previous salary!",
   },
 ];
 
@@ -147,7 +147,7 @@ export default function Testimonials() {
           </h2>
 
           <p className="text-gray-400 max-w-2xl mx-auto">
-            Discover how EduCredit Pro has helped students secure funding,
+            Discover how SkillBridge Pro has helped students secure funding,
             advance their careers, and achieve financial success through
             skills-based financing.
           </p>

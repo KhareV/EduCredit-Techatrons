@@ -321,7 +321,7 @@ export default function InvestorOnboardingPage() {
         <header className="border-b border-slate-800 backdrop-blur-sm bg-slate-900/50 z-10 relative">
           <div className="container mx-auto py-4 px-4 flex items-center justify-between">
             <div className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300">
-              EduCredit Pro
+              SkillBridge Pro
             </div>
             <Button
               variant="ghost"

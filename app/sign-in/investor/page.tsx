@@ -24,7 +24,7 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (isSignedIn) {
-      router.push("/investor");
+      router.push("/onboarding/investor");
     }
   }, [isSignedIn, router]);
 
@@ -54,7 +54,7 @@ export default function SignInPage() {
                 Welcome Back
               </h1>
               <p className="text-gray-400 mt-3 text-base">
-                Sign in to your EduCredit Pro account
+                Sign in to your SkillBridge Pro account
               </p>
             </div>
 

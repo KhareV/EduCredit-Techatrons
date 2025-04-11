@@ -185,7 +185,7 @@ export default function Hero() {
             ref={subtitleRef}
             className="text-lg md:text-xl text-gray-300 mb-10 max-w-md"
           >
-            EduCredit Pro combines AI-powered career planning, skills
+            SkillBridge Pro combines AI-powered career planning, skills
             verification, and innovative financing to make education accessible
             for everyone.
           </p>

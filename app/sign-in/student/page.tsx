@@ -23,7 +23,7 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (isSignedIn) {
-      router.push("/dashboard");
+      router.push("/onboarding");
     }
 
     // Add a subtle background animation effect
@@ -71,7 +71,7 @@ export default function SignInPage() {
                 Welcome Back
               </h1>
               <p className="text-slate-400 mt-3 text-base">
-                Sign in to your EduCredit Pro account
+                Sign in to your SkillBridge Pro account
               </p>
             </div>
 

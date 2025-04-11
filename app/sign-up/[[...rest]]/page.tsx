@@ -84,7 +84,7 @@ export default function SignInSelectionPage() {
             className="text-center mb-10"
           >
             <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-400 to-emerald-400">
-              Welcome to EduCredit Pro
+              Welcome to SkillBridge Pro
             </h1>
             <p className="mt-4 text-slate-400 max-w-xl mx-auto">
               Select how you would like to sign in to access your personalized

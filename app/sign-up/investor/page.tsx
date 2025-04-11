@@ -23,7 +23,7 @@ export default function SignUpPage() {
 
   useEffect(() => {
     if (isSignedIn) {
-      router.push("/investor");
+      router.push("/onboarding/investor");
     }
 
     // Add a subtle background animation effect
@@ -80,7 +80,7 @@ export default function SignUpPage() {
                 Create Account
               </h1>
               <p className="text-slate-400 mt-3 text-base">
-                Join EduCredit Pro to unlock your potential
+                Join SkillBridge Pro to unlock your potential
               </p>
             </div>
 

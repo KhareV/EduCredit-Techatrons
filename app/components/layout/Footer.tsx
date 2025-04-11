@@ -38,7 +38,7 @@ export default function Footer() {
                   backgroundClip: "text",
                 }}
               >
-                EduCredit
+                SkillBridge
               </span>
             </Link>
             <p className="text-gray-400 text-sm">
@@ -235,7 +235,7 @@ export default function Footer() {
             transition={{ duration: 0.5 }}
             className="flex flex-col md:flex-row items-center justify-between text-gray-500 text-sm"
           >
-            <p>&copy; {currentYear} EduCredit. All rights reserved.</p>
+            <p>&copy; {currentYear} SkillBridge. All rights reserved.</p>
             <div className="flex flex-wrap justify-center mt-4 md:mt-0">
               <span className="px-2 py-1 bg-gray-800/50 rounded-md mx-1 my-1">
                 <span className="font-medium text-indigo-400">User:</span>{" "}

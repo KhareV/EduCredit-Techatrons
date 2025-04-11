@@ -268,7 +268,7 @@ export default function OnboardingPage() {
         <header className="border-b border-slate-800 backdrop-blur-sm bg-slate-900/50 z-10 relative">
           <div className="container mx-auto py-4 px-4 flex items-center justify-between">
             <div className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300">
-              EduCredit Pro
+              SkillBridgege Pro
             </div>
             <Button
               variant="ghost"
@@ -288,7 +288,7 @@ export default function OnboardingPage() {
               </h1>
               <p className="text-slate-400 mt-3">
                 Let's personalize your experience to help you get the most out
-                of EduCredit Pro
+                of SkillBridge Pro
               </p>
             </div>
 

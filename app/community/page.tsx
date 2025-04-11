@@ -111,7 +111,7 @@ const fetchCommunityData = async () => {
           title: "Virtual Career Fair: Tech Startups Edition",
           description:
             "Connect with 30+ tech startups looking for talent in engineering, design, and product roles.",
-          organizer: "EduCredit Pro",
+          organizer: "SkillBridge Pro",
           date: "2025-04-15T09:00:00Z",
           endDate: "2025-04-15T17:00:00Z",
           location: "Virtual",

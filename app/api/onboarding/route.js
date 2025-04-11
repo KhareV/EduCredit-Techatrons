@@ -1,37 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import mongoose from "mongoose";
+// Note: This file is .js, using require for imports
+const { NextResponse } = require("next/server");
+const { auth } = require("@clerk/nextjs/server");
+const mongoose = require("mongoose");
+const connectToDB = require("@/lib/mongoose").default; // Use shared connection utility
+const InvestorOnboarding =
+  require("@/lib/db/models/InvestorOnboarding").default;
+const StudentOnboarding = require("@/lib/db/models/StudentOnboarding").default;
 
-// MongoDB connection string
-const MONGODB_URI =
-  "mongodb+srv://gholumolumola:yO71YzU61x8p6fk1@cluster0.zhua5vp.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
-// Connect to MongoDB
-let cached = global.mongoose;
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
-}
-
-async function connectToDatabase() {
-  if (cached.conn) {
-    return cached.conn;
-  }
-
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
-    });
-  }
-
-  cached.conn = await cached.promise;
-  return cached.conn;
-}
-
-// Define UserInfo schema
+// Define UserInfo schema (Keeping this as it seems to be the primary user store used here)
+// Consider moving this to lib/db/models/UserInfo.js for consistency later
 const UserInfoSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true, unique: true },
@@ -68,8 +45,8 @@ const UserInfo =
 export async function POST(request) {
   try {
     // Verify authentication
-    const { userId } = await auth();
-    if (!userId) {
+    const { userId: clerkId } = await auth(); // Rename to clerkId for clarity
+    if (!clerkId) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
@@ -78,38 +55,102 @@ export async function POST(request) {
 
     // Parse request body
     const data = await request.json();
+    const role = data.role; // Assuming role is sent from frontend
 
-    // Connect to database
-    await connectToDatabase();
-
-    // Check if user already exists
-    let userInfo = await UserInfo.findOne({ userId });
-
-    if (userInfo) {
-      // Update existing user
-      userInfo.personalDetails = data.personalDetails;
-      userInfo.education = data.education;
-      userInfo.skills = data.skills;
-      userInfo.career = data.career;
-      userInfo.updatedAt = new Date();
-
-      await userInfo.save();
-    } else {
-      // Create new user
-      userInfo = new UserInfo({
-        userId,
-        personalDetails: data.personalDetails,
-        education: data.education,
-        skills: data.skills,
-        career: data.career,
-      });
-
-      await userInfo.save();
+    if (!role || (role !== "student" && role !== "investor")) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "User role ('student' or 'investor') is required in data payload.",
+        },
+        { status: 400 }
+      );
     }
 
+    // Connect to database using the utility
+    await connectToDB();
+
+    // --- Find or Create the main UserInfo document ---
+    // Using clerkId which is stored in the 'userId' field of UserInfoSchema
+    let userInfo = await UserInfo.findOne({ userId: clerkId });
+
+    if (!userInfo) {
+      // If UserInfo doesn't exist, create it (basic info might be needed here)
+      // This assumes the webhook might not have created it yet, or it's the first login
+      userInfo = new UserInfo({
+        userId: clerkId,
+        personalDetails: data.personalDetails || {}, // Add defaults if needed
+        education: data.education || {},
+        skills: data.skills || {},
+        career: data.career || {},
+      });
+      await userInfo.save();
+      console.log(`Created new UserInfo for clerkId: ${clerkId}`);
+    } else {
+      // Update existing UserInfo if needed (optional, could just rely on role-specific data)
+      // For now, keep the existing update logic:
+      userInfo.personalDetails =
+        data.personalDetails || userInfo.personalDetails;
+      userInfo.education = data.education || userInfo.education;
+      userInfo.skills = data.skills || userInfo.skills;
+      userInfo.career = data.career || userInfo.career;
+      userInfo.updatedAt = new Date();
+      await userInfo.save();
+      console.log(`Updated UserInfo for clerkId: ${clerkId}`);
+    }
+
+    // --- Save Role-Specific Onboarding Data ---
+    const userInfoId = userInfo._id; // Get the MongoDB ObjectId of the UserInfo doc
+
+    if (role === "investor") {
+      await InvestorOnboarding.findOneAndUpdate(
+        { clerkId: clerkId }, // Find based on Clerk ID to ensure uniqueness
+        {
+          userId: userInfoId, // Link to the UserInfo document's _id
+          clerkId: clerkId,
+          investmentFocus: data.investmentFocus,
+          preferredStages: data.preferredStages,
+          portfolioSize: data.portfolioSize,
+          companyName: data.companyName,
+          roleInCompany: data.roleInCompany,
+          riskAppetite: data.riskAppetite,
+          linkedInProfile: data.linkedInProfile,
+          website: data.website,
+          accreditationStatus: data.accreditationStatus,
+          onboardingData: data, // Store the full payload as catch-all for now
+          completedAt: new Date(),
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true } // Create if not found
+      );
+      console.log(`Upserted InvestorOnboarding for clerkId: ${clerkId}`);
+    } else if (role === "student") {
+      await StudentOnboarding.findOneAndUpdate(
+        { clerkId: clerkId }, // Find based on Clerk ID
+        {
+          userId: userInfoId, // Link to the UserInfo document's _id
+          clerkId: clerkId,
+          educationalGoals: data.educationalGoals,
+          careerAspirations: data.careerAspirations,
+          preferredLearningStyle: data.preferredLearningStyle,
+          skillsToDevelop: data.skillsToDevelop,
+          fundingNeedReason: data.fundingNeedReason,
+          location: data.personalDetails?.location, // Example: pull from main data
+          dateOfBirth: data.dateOfBirth,
+          currentEducationLevel: data.education?.level, // Example: pull from main data
+          fieldOfStudy: data.education?.major, // Example: pull from main data
+          onboardingData: data, // Store the full payload
+          completedAt: new Date(),
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true } // Create if not found
+      );
+      console.log(`Upserted StudentOnboarding for clerkId: ${clerkId}`);
+    }
+
+    // Return success, maybe don't return all the data anymore?
     return NextResponse.json({
       success: true,
-      message: "Onboarding data saved successfully",
+      message: `Onboarding data saved successfully for ${role}.`,
       data: {
         userId: userInfo.userId,
         personalDetails: userInfo.personalDetails,
